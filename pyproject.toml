@@ -1,0 +1,30 @@
+[project]
+name = "elevatorsim"
+version = "0.1.0"
+description = "Discrete-event elevator simulator with Strands multi-agent and heuristic policies"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "strands-agents==1.42.0",
+    "strands-agents-tools==0.8.0",
+    "google-genai>=2.0.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/elevatorsim"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
