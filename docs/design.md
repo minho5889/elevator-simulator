@@ -108,3 +108,21 @@ The project is structured to easily scale across tiers:
 * **Tier 1 (Stochastic Traffic) [Completed]:** Introduce stochastic passenger spawns using the seeded `RNG` and custom traffic profiles (`UNIFORM`, `UP_PEAK`, `DOWN_PEAK`).
 * **Tier 2 (Multi-Car Bank) [Next]:** Upgrade to an elevator bank (3-6 cars) using a SimPy time engine. Coordination will leverage Strands **Agents-as-Tools** supervisor primitives (a supervisor agent overseeing individual car agents) or a state **Graph**.
 * **Tier 3 (Skyscraper) [Planned]:** Swarm and Workflow orchestration across hierarchical building controllers, exposing MCP servers for config and performance metrics.
+
+---
+
+## 6. Web Application & Real-Time Simulation (WebSockets)
+
+To enable side-by-side comparative visualization and interactive control, the system includes a web application layered on top of the simulator package.
+
+### Architecture overview
+* **FastAPI Server (`src/elevatorsim/web/server.py`):** Acts as the simulation server. It hosts REST endpoints for preset caching and API-key checking, and a WebSocket path for live interactive sessions.
+* **Vite React Frontend (`src/elevatorsim/web/frontend/`):** Implements a dark-themed glassmorphism dashboard that renders the physical shafts, passenger queues, telemetry metrics, and comparison charts.
+
+### Real-Time WebSockets Engine
+When a custom interactive session starts, the frontend opens a persistent WebSocket connection to `/api/ws/simulate`:
+1. **Synchronized Dual Instantiation:** The backend spins up separate `Simulation` instances for both LOOK and Gemini dispatchers, using identical seeds and traffic profiles.
+2. **Synchronized User Actions:** When the user clicks the UI canvas to spawn a passenger manually, the request is broadcast over the WebSocket. The backend instantiates matching passenger entities and schedules them in both simulators, preserving A/B benchmarking fairness.
+3. **Pacing & Worker Thread Isolation:** Because the Gemini dispatcher utilizes a synchronous 26-second rate-limiting delay, calling it directly would block the FastAPI async event loop. To prevent this, the backend executes simulation ticks in separate OS-level threads using `asyncio.to_thread`.
+4. **Pull-Based stepping loop:** To handle Gemini latency seamlessly, the frontend runs a pull-based stepping loop. Instead of blindly ticking on a fixed interval, the frontend only triggers the next simulation tick after receiving the state update for the current tick from the server, displaying a visual "Gemini is thinking..." load mask during active agent turns.
+

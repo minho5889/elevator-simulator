@@ -130,3 +130,11 @@ h1, h2, h3, h4, h5, h6 {
 .mono {
   font-family: var(--mono);
 }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}

@@ -83,3 +83,25 @@ This log documents key architectural decisions made during the design and develo
 * **Rationale for Choice:**
   * Preserves the decoupling between the deterministic core and the policy layer.
   * Allows evaluating dispatchers on standard traffic patterns to measure average wait/transit times under heavier loads.
+
+---
+
+## Decision 8: Side-by-Side Playback Cache & Local Storage Settings (Tier 1 Web App)
+
+* **Context:** Daily API limits restrict Gemini Free Tier keys to 20 requests/day, making live runs expensive and prohibitive for casual A/B testing of the LOOK vs. Agentic dispatchers.
+* **Proposed Option:** Build a preset scenario cache that pre-records simulation runs (seed 42, standard traffic profiles) and stores them as static JSON assets. Allow the user to input their own `GEMINI_API_KEY` (saved securely in local browser storage) for custom live runs.
+* **Rationale for Choice:**
+  * Preset scenarios load instantly and play back with zero API calls.
+  * Local storage keeps the API key secure and prevents the backend server from exposing or sharing keys.
+
+---
+
+## Decision 9: Persistent WebSockets & Background Threading for Real-Time Interactive Simulator
+
+* **Context:** Exposing real-time interactive simulation capabilities (clicking floors to spawn passengers, pausing/resuming, and stepping tick-by-tick) requires immediate, bi-directional communication between the client and the simulator instance.
+* **Proposed Option:** Use a persistent WebSockets connection (`/api/ws/simulate`) to maintain dual simulation instances side-by-side in-memory on the backend. Because the agentic simulation step is synchronous and contains long rate-limiting delays (26 seconds per tick), run the simulation steps inside worker threads using `asyncio.to_thread` to prevent blocking the FastAPI event loop.
+* **Rationale for Choice:**
+  * WebSockets allow instantaneous updates and event broadcasts.
+  * Synchronized inputs are easily cloned and scheduled in both LOOK and Gemini simulation queues.
+  * Background threading ensures other API requests and concurrent WebSocket sessions remain active and responsive during agent thinking states.
+

@@ -159,6 +159,16 @@ export default function App() {
   const hLogRef = useRef(null);
   const aLogRef = useRef(null);
 
+  // Live Interactive Mode States
+  const [isInteractiveMode, setIsInteractiveMode] = useState(false);
+  const [isAgentThinking, setIsAgentThinking] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [activeSpawnFloor, setActiveSpawnFloor] = useState(null);
+
+  const wsRef = useRef(null);
+  const playbackTimeoutRef = useRef(null);
+  const intervalRef = useRef(null);
+
   // Fetch presets on load
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/presets`)
@@ -172,26 +182,56 @@ export default function App() {
       .catch(err => {
         console.error('Failed to load presets:', err);
       });
+
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+      if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
-  // Playback Interval Control
+  // Sync references to avoid stale closures in WebSocket handlers
+  const isPlayingRef = useRef(isPlaying);
   useEffect(() => {
-    let interval = null;
+    isPlayingRef.current = isPlaying;
+
     if (isPlaying) {
-      interval = setInterval(() => {
-        setCurrentTick(prev => {
-          if (prev >= maxTicks) {
-            setIsPlaying(false);
-            return prev;
-          }
-          return prev + 1;
-        });
-      }, playbackSpeed);
+      if (isInteractiveMode) {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'step' }));
+        }
+      } else {
+        intervalRef.current = setInterval(() => {
+          setCurrentTick(prev => {
+            if (prev >= maxTicks) {
+              setIsPlaying(false);
+              return prev;
+            }
+            return prev + 1;
+          });
+        }, playbackSpeed);
+      }
     } else {
-      clearInterval(interval);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      if (playbackTimeoutRef.current) {
+        clearTimeout(playbackTimeoutRef.current);
+        playbackTimeoutRef.current = null;
+      }
     }
-    return () => clearInterval(interval);
-  }, [isPlaying, playbackSpeed, maxTicks]);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
+    };
+  }, [isPlaying, isInteractiveMode, maxTicks, playbackSpeed]);
+
+  const playbackSpeedRef = useRef(playbackSpeed);
+  useEffect(() => {
+    playbackSpeedRef.current = playbackSpeed;
+  }, [playbackSpeed]);
 
   // Autoscroll consoles when tick changes
   useEffect(() => {
@@ -199,10 +239,99 @@ export default function App() {
     if (aLogRef.current) aLogRef.current.scrollTop = aLogRef.current.scrollHeight;
   }, [currentTick]);
 
+  const initWebSocket = () => {
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+    if (playbackTimeoutRef.current) {
+      clearTimeout(playbackTimeoutRef.current);
+    }
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
+    const wsUrl = `${wsProtocol}//${wsHost}/api/ws/simulate`;
+
+    console.log('Connecting to WebSocket:', wsUrl);
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('WebSocket connection opened.');
+      setWsConnected(true);
+      
+      // Initialize on backend
+      ws.send(JSON.stringify({
+        type: 'init',
+        config: {
+          seed: Number(seed),
+          num_floors: Number(floors),
+          arrival_rate: Number(arrivalRate),
+          profile: profile,
+          max_ticks: Number(maxTicks),
+          api_key: userApiKey || null,
+          run_agentic: true
+        }
+      }));
+    };
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+
+      if (msg.type === 'state') {
+        setIsAgentThinking(false);
+        const { current_tick, heuristic_events, agentic_events, agentic_error } = msg;
+
+        setHeuristicData(prev => {
+          const existingEvents = (current_tick === 0 || !prev) ? [] : (prev.events || []);
+          return {
+            events: [...existingEvents, ...heuristic_events]
+          };
+        });
+
+        setAgenticData(prev => {
+          const existingEvents = (current_tick === 0 || !prev) ? [] : (prev.events || []);
+          return {
+            events: [...existingEvents, ...agentic_events]
+          };
+        });
+
+        setAgenticError(agentic_error);
+        setCurrentTick(current_tick);
+
+        // Pull stepping loop: trigger next step after tick delay if playing
+        if (isPlayingRef.current && current_tick < maxTicks) {
+          playbackTimeoutRef.current = setTimeout(() => {
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({ type: 'step' }));
+            }
+          }, playbackSpeedRef.current);
+        } else if (current_tick >= maxTicks) {
+          setIsPlaying(false);
+        }
+      } else if (msg.type === 'thinking') {
+        setIsAgentThinking(true);
+      } else if (msg.type === 'error') {
+        setIsAgentThinking(false);
+        setIsPlaying(false);
+        setSimError(msg.message);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket connection closed.');
+      setWsConnected(false);
+    };
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+      setSimError('WebSocket connection error.');
+    };
+  };
+
   const loadPresetData = (presetName, presetObj) => {
     setActivePreset(presetName);
     setSeed(presetObj.seed);
-    setFloors(presetObj.heuristic.metrics.total_ticks ? 5 : 5); // Default to 5 floors
+    setFloors(presetObj.num_floors || 5);
     setArrivalRate(presetObj.arrival_rate);
     setMaxTicks(presetObj.max_ticks);
     setProfile(presetObj.profile);
@@ -216,6 +345,12 @@ export default function App() {
 
   const handlePresetChange = (presetName) => {
     if (presets[presetName]) {
+      setIsInteractiveMode(false);
+      setIsPlaying(false);
+      setIsAgentThinking(false);
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
       loadPresetData(presetName, presets[presetName]);
     }
   };
@@ -254,40 +389,47 @@ export default function App() {
   };
 
   const runCustomSimulation = () => {
-    setSimulating(true);
     setSimError(null);
     setIsPlaying(false);
     setCurrentTick(0);
+    setIsInteractiveMode(true);
+    setActivePreset('custom');
 
-    fetch(`${BACKEND_URL}/api/simulate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        seed: Number(seed),
-        num_floors: Number(floors),
-        arrival_rate: Number(arrivalRate),
-        profile: profile,
-        max_ticks: Number(maxTicks),
-        api_key: userApiKey || null,
-        run_agentic: true
-      })
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('API server returned error.');
-        return res.json();
-      })
-      .then(data => {
-        setSimulating(false);
-        setActivePreset('custom');
-        setHeuristicData(data.heuristic);
-        setAgenticData(data.agentic);
-        setAgenticError(data.agentic_error);
-      })
-      .catch(err => {
-        setSimulating(false);
-        setSimError(err.message);
-        console.error('Simulation error:', err);
-      });
+    // Instantiate interactive WebSocket session
+    initWebSocket();
+  };
+
+  const spawnPassenger = (source, target) => {
+    if (!isInteractiveMode) {
+      alert("Manual passenger spawning is only supported in custom interactive simulations. Please click 'Run Simulation' to start one first.");
+      return;
+    }
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'spawn',
+        source: Number(source),
+        target: Number(target)
+      }));
+    } else {
+      setSimError("WebSocket is not connected. Cannot spawn passenger.");
+    }
+    setActiveSpawnFloor(null);
+  };
+
+  const handleRandomSpawn = () => {
+    if (!isInteractiveMode) {
+      alert("Manual passenger spawning is only supported in custom interactive simulations. Please click 'Run Simulation' to start one first.");
+      return;
+    }
+
+    const source = Math.floor(Math.random() * floors);
+    let target = Math.floor(Math.random() * floors);
+    while (target === source) {
+      target = Math.floor(Math.random() * floors);
+    }
+
+    spawnPassenger(source, target);
   };
 
   // Reconstruct States
@@ -511,14 +653,40 @@ export default function App() {
                 {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
               </button>
               <button 
-                onClick={() => { setCurrentTick(0); setIsPlaying(false); }}
+                onClick={() => {
+                  setCurrentTick(0);
+                  setIsPlaying(false);
+                  setIsAgentThinking(false);
+                  if (playbackTimeoutRef.current) {
+                    clearTimeout(playbackTimeoutRef.current);
+                    playbackTimeoutRef.current = null;
+                  }
+                  if (intervalRef.current) {
+                    clearInterval(intervalRef.current);
+                    intervalRef.current = null;
+                  }
+                  if (isInteractiveMode) {
+                    initWebSocket();
+                  }
+                }}
                 className="p-2 rounded-full border border-[var(--border-color)] bg-slate-900 text-slate-300 hover:text-white hover:border-slate-600 transition"
                 title="Reset Simulation"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
               <button 
-                onClick={() => { if (currentTick < maxTicks) setCurrentTick(c => c + 1); setIsPlaying(false); }}
+                onClick={() => {
+                  setIsPlaying(false);
+                  if (isInteractiveMode) {
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                      wsRef.current.send(JSON.stringify({ type: 'step' }));
+                    }
+                  } else {
+                    if (currentTick < maxTicks) {
+                      setCurrentTick(c => c + 1);
+                    }
+                  }
+                }}
                 className="p-2 rounded-full border border-[var(--border-color)] bg-slate-900 text-slate-300 hover:text-white hover:border-slate-600 transition"
                 title="Manual Tick Step"
               >
@@ -532,7 +700,8 @@ export default function App() {
               <input 
                 type="range" min="0" max={maxTicks}
                 value={currentTick} onChange={(e) => { setCurrentTick(Number(e.target.value)); setIsPlaying(false); }}
-                className="flex-1 accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                disabled={isInteractiveMode}
+                className="flex-1 accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer disabled:opacity-50"
               />
               <span className="text-xs font-semibold font-mono text-slate-500 w-8">{String(maxTicks).padStart(3, '0')}</span>
             </div>
@@ -553,6 +722,22 @@ export default function App() {
             </div>
           </div>
 
+          {/* Interactive Spawning Helper Banner */}
+          {isInteractiveMode && (
+            <div className="glass-panel px-4 py-2 flex justify-between items-center bg-cyan-500/5 border border-cyan-500/20 rounded-lg text-xs slide-up">
+              <span className="flex items-center gap-2 text-cyan-400 font-medium">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 pulse-glow"></span>
+                Interactive Mode Active: Click any floor row in the shafts to spawn passengers manually.
+              </span>
+              <button
+                onClick={handleRandomSpawn}
+                className="px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-400 font-bold rounded text-[10px] uppercase tracking-wider transition"
+              >
+                Spawn Random Passenger
+              </button>
+            </div>
+          )}
+
           {/* Elevator Canvas Shafts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
@@ -566,12 +751,17 @@ export default function App() {
                 <span className="text-xs bg-slate-900 border border-[var(--border-color)] px-2 py-0.5 rounded-full text-slate-400 font-mono">Offline</span>
               </div>
               
-              <ElevatorShaft state={hState} numFloors={floors} accentColor="var(--look-cyan)" />
+              <ElevatorShaft 
+                state={hState} 
+                numFloors={floors} 
+                accentColor="var(--look-cyan)" 
+                onFloorClick={isInteractiveMode ? (fIdx) => setActiveSpawnFloor(fIdx) : null}
+              />
               <ConsoleTerminal logRef={hLogRef} logs={hState.logs} title="LOOK Event Logs" />
             </div>
 
             {/* Agentic Gemini Shaft */}
-            <div className="glass-panel p-4 flex flex-col border-t-2 border-t-[var(--agent-violet)]">
+            <div className={`glass-panel p-4 flex flex-col border-t-2 border-t-[var(--agent-violet)] relative transition-all duration-300 ${isAgentThinking ? 'border-violet-500/50 shadow-[0_0_15px_rgba(167,139,250,0.25)]' : ''}`}>
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-sm font-semibold tracking-wider text-[var(--agent-violet)] uppercase flex items-center gap-1.5 m-0">
                   <UserCheck className="w-4 h-4" />
@@ -579,6 +769,16 @@ export default function App() {
                 </h3>
                 <span className="text-xs bg-violet-950/35 border border-violet-800/40 px-2 py-0.5 rounded-full text-violet-400 font-mono">Agentic</span>
               </div>
+
+              {isAgentThinking && (
+                <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[2px] rounded-lg z-10 flex flex-col items-center justify-center text-center p-6">
+                  <div className="w-8 h-8 rounded-full border-2 border-t-[var(--agent-violet)] border-r-transparent animate-spin mb-3"></div>
+                  <h4 className="text-sm font-bold text-slate-200">Gemini is thinking...</h4>
+                  <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] leading-relaxed">
+                    Analyzing floor queues and car state to make the optimal dispatch decision.
+                  </p>
+                </div>
+              )}
 
               {agenticError ? (
                 <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-slate-950/40 border border-dashed border-[var(--border-color)] rounded-lg min-h-[300px]">
@@ -598,7 +798,12 @@ export default function App() {
                 </div>
               ) : (
                 <>
-                  <ElevatorShaft state={aState} numFloors={floors} accentColor="var(--agent-violet)" />
+                  <ElevatorShaft 
+                    state={aState} 
+                    numFloors={floors} 
+                    accentColor="var(--agent-violet)" 
+                    onFloorClick={isInteractiveMode ? (fIdx) => setActiveSpawnFloor(fIdx) : null}
+                  />
                   <ConsoleTerminal logRef={aLogRef} logs={aState.logs} title="Agent Event Logs" />
                 </>
               )}
@@ -721,6 +926,45 @@ export default function App() {
         </div>
       )}
 
+      {/* Passenger Spawn Destination Selector Modal */}
+      {activeSpawnFloor !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-sm p-6 bg-slate-900 border border-slate-700/60 rounded-xl relative">
+            <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+              <UserCheck className="text-cyan-400 w-5 h-5" />
+              Spawn Passenger
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              Select destination floor for passenger starting at <strong>Floor {activeSpawnFloor}</strong>.
+            </p>
+            
+            <div className="grid grid-cols-5 gap-2.5 my-4">
+              {Array.from({ length: floors }, (_, idx) => {
+                if (idx === activeSpawnFloor) return null;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => spawnPassenger(activeSpawnFloor, idx)}
+                    className="h-10 rounded-lg bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 font-mono font-bold text-sm text-slate-300 border border-slate-700 hover:border-transparent transition"
+                  >
+                    {idx}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => setActiveSpawnFloor(null)}
+                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <footer className="mt-12 py-4 border-t border-[var(--border-color)] text-center text-xs text-[var(--text-muted)] flex justify-between items-center">
         <span>Discrete-Event Elevator Simulator Platform</span>
@@ -731,7 +975,7 @@ export default function App() {
 }
 
 // Elevator Shaft Component representing floors, car vertical translation, and queue indicators
-function ElevatorShaft({ state, numFloors, accentColor }) {
+function ElevatorShaft({ state, numFloors, accentColor, onFloorClick }) {
   // Reconstruct floors (ordered descending so lobby 0 is at bottom)
   const floorIndices = Array.from({ length: numFloors }, (_, i) => numFloors - 1 - i);
   const carFloor = state.carFloor;
@@ -751,7 +995,8 @@ function ElevatorShaft({ state, numFloors, accentColor }) {
           return (
             <div 
               key={fIdx} 
-              className="flex justify-between items-center py-2 h-10 border-b border-dashed border-slate-900 last:border-b-0"
+              onClick={() => onFloorClick && onFloorClick(fIdx)}
+              className={`flex justify-between items-center py-2 h-10 border-b border-dashed border-slate-900 last:border-b-0 px-2 rounded transition-colors ${onFloorClick ? 'cursor-pointer hover:bg-slate-900/40' : ''}`}
             >
               {/* Floor Label */}
               <div className="flex items-center gap-1">

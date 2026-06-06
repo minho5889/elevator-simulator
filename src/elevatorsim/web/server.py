@@ -5,11 +5,13 @@ import os
 import sys
 import json
 import logging
+import random
+import asyncio
 from typing import Dict, Any, List, Optional
 from contextlib import contextmanager
 from pydantic import BaseModel, Field
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -21,6 +23,7 @@ if ROOT_DIR not in sys.path:
 from elevatorsim.core.building import Building  # noqa: E402
 from elevatorsim.core.car import Car  # noqa: E402
 from elevatorsim.core.metrics import MetricsCollector  # noqa: E402
+from elevatorsim.core.passenger import Passenger  # noqa: E402
 from elevatorsim.core.simulation import Simulation  # noqa: E402
 from elevatorsim.core.traffic import TrafficGenerator  # noqa: E402
 from elevatorsim.policy.heuristic import HeuristicDispatcher  # noqa: E402
@@ -236,6 +239,254 @@ def get_presets():
             logger.warning(f"Preset cache file {filename} does not exist. Please run cache_generator.py first.")
             
     return presets
+
+
+@app.websocket("/api/ws/simulate")
+async def websocket_simulate(websocket: WebSocket):
+    await websocket.accept()
+    logger.info("WebSocket connection established.")
+    
+    # State variables for the WebSocket session
+    look_sim: Optional[Simulation] = None
+    gemini_sim: Optional[Simulation] = None
+    traffic_generator: Optional[TrafficGenerator] = None
+    ws_rng: Optional[random.Random] = None
+    
+    seed = 42
+    num_floors = 5
+    arrival_rate = 0.2
+    profile = "UNIFORM"
+    max_ticks = 50
+    api_key: Optional[str] = None
+    run_agentic = True
+    passenger_counter = 0
+    
+    # Lists to collect events for the current tick
+    look_tick_events = []
+    gemini_tick_events = []
+    
+    def look_listener(ev):
+        look_tick_events.append(serialize_event(ev))
+        
+    def gemini_listener(ev):
+        gemini_tick_events.append(serialize_event(ev))
+        
+    try:
+        while True:
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            msg_type = message.get("type")
+            
+            if msg_type == "init":
+                config = message.get("config", {})
+                seed = config.get("seed", 42)
+                num_floors = config.get("num_floors", 5)
+                arrival_rate = config.get("arrival_rate", 0.2)
+                profile = config.get("profile", "UNIFORM")
+                run_agentic = config.get("run_agentic", True)
+                api_key = config.get("api_key")
+                max_ticks = config.get("max_ticks", 50)
+                
+                ws_rng = random.Random(seed)
+                traffic_generator = TrafficGenerator(num_floors=num_floors, arrival_rate=arrival_rate, profile=profile)
+                passenger_counter = 0
+                
+                # Initialize LOOK
+                look_building = Building(num_floors=num_floors)
+                look_car = Car(car_id="C1", initial_floor=0)
+                look_metrics = MetricsCollector()
+                look_dispatcher = HeuristicDispatcher()
+                look_sim = Simulation(
+                    building=look_building,
+                    car=look_car,
+                    dispatcher=look_dispatcher,
+                    metrics_collector=look_metrics,
+                    traffic_generator=None,
+                    verbose=False
+                )
+                look_tick_events = []
+                look_sim.register_listener(look_listener)
+                
+                # Initialize Gemini if enabled
+                gemini_sim = None
+                gemini_tick_events = []
+                if run_agentic:
+                    gemini_building = Building(num_floors=num_floors)
+                    gemini_car = Car(car_id="C1", initial_floor=0)
+                    gemini_metrics = MetricsCollector()
+                    gemini_dispatcher = DispatcherAgent()
+                    gemini_sim = Simulation(
+                        building=gemini_building,
+                        car=gemini_car,
+                        dispatcher=gemini_dispatcher,
+                        metrics_collector=gemini_metrics,
+                        traffic_generator=None,
+                        verbose=False
+                    )
+                    gemini_sim.register_listener(gemini_listener)
+                    
+                # Broadcast the initial state (tick 0)
+                await websocket.send_json({
+                    "type": "state",
+                    "current_tick": 0,
+                    "heuristic_events": [],
+                    "agentic_events": [],
+                    "agentic_error": None
+                })
+                
+            elif msg_type == "step":
+                if look_sim is None:
+                    await websocket.send_json({"type": "error", "message": "Simulation not initialized."})
+                    continue
+                
+                current_tick = look_sim.current_time
+                next_tick = current_tick + 1
+                
+                if next_tick > max_ticks:
+                    await websocket.send_json({"type": "error", "message": "Maximum tick limit reached."})
+                    continue
+                
+                look_tick_events.clear()
+                gemini_tick_events.clear()
+                agentic_error = None
+                
+                # Generate stochastic arrivals for next_tick
+                if traffic_generator is not None and ws_rng is not None:
+                    new_passengers = traffic_generator.generate(next_tick, ws_rng)
+                    for passenger in new_passengers:
+                        # Schedule in both sims
+                        p_look = Passenger(
+                            passenger_id=passenger.passenger_id,
+                            source_floor=passenger.source_floor,
+                            target_floor=passenger.target_floor,
+                            spawn_time=passenger.spawn_time
+                        )
+                        look_sim.schedule_passenger(next_tick, p_look)
+                        
+                        if gemini_sim is not None:
+                            p_gemini = Passenger(
+                                passenger_id=passenger.passenger_id,
+                                source_floor=passenger.source_floor,
+                                target_floor=passenger.target_floor,
+                                spawn_time=passenger.spawn_time
+                            )
+                            gemini_sim.schedule_passenger(next_tick, p_gemini)
+                
+                # Step LOOK Heuristic in threadpool
+                await asyncio.to_thread(look_sim.step)
+                
+                # Step Gemini Agent in threadpool if enabled
+                if gemini_sim is not None:
+                    # Check if the agent is about to run a dispatch decision
+                    is_thinking = (
+                        gemini_sim.car.door_state == "CLOSED" and
+                        gemini_sim.car.target_floor is None and
+                        (gemini_sim.building.has_pending_calls() or gemini_sim.car.passenger_count > 0)
+                    )
+                    
+                    if is_thinking:
+                        await websocket.send_json({"type": "thinking"})
+                        
+                    effective_key = api_key or get_gemini_api_key()
+                    if not effective_key:
+                        agentic_error = "GEMINI_API_KEY is not configured on the server, and no key was provided in the UI settings."
+                        logger.warning("Skipping agentic step: no API key.")
+                    else:
+                        with override_env_key(effective_key):
+                            try:
+                                await asyncio.to_thread(gemini_sim.step)
+                            except Exception as e:
+                                logger.error(f"Agentic step failed: {e}")
+                                agentic_error = str(e)
+                
+                # Send the state update with events accumulated in this tick
+                await websocket.send_json({
+                    "type": "state",
+                    "current_tick": next_tick,
+                    "heuristic_events": look_tick_events,
+                    "agentic_events": gemini_tick_events,
+                    "agentic_error": agentic_error
+                })
+                
+            elif msg_type == "spawn":
+                if look_sim is None:
+                    await websocket.send_json({"type": "error", "message": "Simulation not initialized."})
+                    continue
+                
+                source = message.get("source")
+                target = message.get("target")
+                
+                if source is None or target is None:
+                    await websocket.send_json({"type": "error", "message": "Missing source or target floor."})
+                    continue
+                
+                passenger_counter += 1
+                manual_id = f"P_man_{passenger_counter}"
+                
+                # Schedule to spawn at the NEXT tick immediately
+                current_tick = look_sim.current_time
+                spawn_tick = current_tick + 1
+                
+                p_look = Passenger(
+                    passenger_id=manual_id,
+                    source_floor=source,
+                    target_floor=target,
+                    spawn_time=spawn_tick
+                )
+                look_sim.schedule_passenger(spawn_tick, p_look)
+                
+                p_gemini = Passenger(
+                    passenger_id=manual_id,
+                    source_floor=source,
+                    target_floor=target,
+                    spawn_time=spawn_tick
+                )
+                if gemini_sim is not None:
+                    gemini_sim.schedule_passenger(spawn_tick, p_gemini)
+                
+                # Send a notification back confirming spawn schedule
+                # The actual spawn events will fire and be streamed during the next 'step'
+                await websocket.send_json({
+                    "type": "spawn_confirm",
+                    "passenger_id": manual_id,
+                    "source": source,
+                    "target": target
+                })
+                
+            elif msg_type == "config":
+                # Handle config updates mid-simulation (e.g. toggling agentic mode)
+                run_agentic = message.get("run_agentic", run_agentic)
+                api_key = message.get("api_key", api_key)
+                
+                if not run_agentic:
+                    gemini_sim = None
+                elif gemini_sim is None and look_sim is not None:
+                    # Dynamically instantiate Gemini if it was disabled but is now enabled
+                    gemini_building = Building(num_floors=num_floors)
+                    gemini_car = Car(car_id="C1", initial_floor=0)
+                    gemini_metrics = MetricsCollector()
+                    gemini_dispatcher = DispatcherAgent()
+                    gemini_sim = Simulation(
+                        building=gemini_building,
+                        car=gemini_car,
+                        dispatcher=gemini_dispatcher,
+                        metrics_collector=gemini_metrics,
+                        traffic_generator=None,
+                        verbose=False
+                    )
+                    gemini_sim.register_listener(gemini_listener)
+                    # Sync current tick of gemini with look_sim
+                    gemini_sim.current_time = look_sim.current_time
+                    
+    except WebSocketDisconnect:
+        logger.info("WebSocket connection disconnected.")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        try:
+            await websocket.send_json({"type": "error", "message": f"Server error: {e}"})
+        except Exception:
+            pass
+
 
 # Mount frontend build folder once available
 frontend_build_path = os.path.join(os.path.dirname(__file__), "frontend", "dist")
