@@ -17,22 +17,29 @@ The simulator is explicitly separated into two independent layers connected by a
    * Standardizes the `dispatch(simulation)` call signature.
    * Enables seamless swapping between heuristic and LLM-backed Strands dispatchers.
 
-```
-+-----------------------------------------------------------+
-|                      CORE LAYER                           |
-|  [Simulation] ---> [Car] ---> [Building] ---> [Passenger] |
-+------------------------------------+----------------------+
-                                     |
-                                     v  (queries state)
-                     +---------------+---------------+
-                     |  policy/base.py: Dispatcher   |
-                     +---------------+---------------+
-                                     |
-                +--------------------+--------------------+
-                |                                         |
-                v                                         v
-    [HeuristicDispatcher]                         [DispatcherAgent]
-  (LOOK Heuristic Baseline)                    (Strands + Gemini-3.5-Flash)
+```mermaid
+flowchart TD
+    subgraph Core ["CORE LAYER (Deterministic Core)"]
+        direction LR
+        Simulation["Simulation"] --> Car["Car"] --> Building["Building"] --> Passenger["Passenger"]
+    end
+
+    Dispatcher["policy/base.py: Dispatcher Interface"]
+
+    Heuristic["HeuristicDispatcher<br>(LOOK Heuristic Baseline)"]
+    Agent["DispatcherAgent<br>(Strands + Gemini-3.5-Flash)"]
+
+    Core -.->|queries state| Dispatcher
+    Dispatcher ==> Heuristic
+    Dispatcher ==> Agent
+
+    classDef core fill:#e1f5fe,stroke:#039be5,stroke-width:2px,color:#000;
+    classDef interface fill:#fff3e0,stroke:#ffb74d,stroke-width:2px,color:#000;
+    classDef impl fill:#f3e5f5,stroke:#ba68c8,stroke-width:2px,color:#000;
+
+    class Core,Simulation,Car,Building,Passenger core;
+    class Dispatcher interface;
+    class Heuristic,Agent impl;
 ```
 
 ---
