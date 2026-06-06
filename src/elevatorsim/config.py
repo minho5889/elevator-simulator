@@ -57,6 +57,8 @@ def get_gemini_model() -> GeminiModel:
         },
         model_id=DEFAULT_MODEL_ID,
         params={
-            "thinking_level": DEFAULT_THINKING_LEVEL,
+            "thinking_config": {
+                "thinking_level": DEFAULT_THINKING_LEVEL,
+            }
         }
     )

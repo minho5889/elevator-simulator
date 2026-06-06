@@ -67,9 +67,19 @@ class DispatcherAgent(Dispatcher):
         set_active_simulation(simulation)
 
         try:
+            # Respect Google AI Studio free tier limits (5 RPM)
+            if simulation.verbose:
+                print("[RATE LIMITING] Waiting 13s to avoid Google AI Studio Free Tier 429 quota limits...")
+            import time
+            time.sleep(13)
+
             # Phase 1: Tool Call / State Gathering
             # The agent is triggered to inspect the environment and output text reasoning.
             agent("Observe the current elevator state and floor queues using tools. Analyze which calls are outstanding.")
+
+            if simulation.verbose:
+                print("[RATE LIMITING] Waiting 13s before structured decision call...")
+            time.sleep(13)
 
             # Phase 2: Structured Output Response
             # We call the structured_output method to retrieve the validated Pydantic model.
