@@ -10,6 +10,7 @@ from elevatorsim.core.events import (
     Event, PassengerSpawned, CallRegistered, CarArrived,
     DoorOpened, PassengerBoarded, PassengerDeboarded, DoorClosed, CarMoved
 )
+from elevatorsim.config import RNG
 
 class Simulation:
     """Fixed-tick elevator simulation coordinator."""
@@ -20,6 +21,7 @@ class Simulation:
         car: Car,
         dispatcher: Any,
         metrics_collector: MetricsCollector,
+        traffic_generator: Any = None,
         verbose: bool = True
     ) -> None:
         """
@@ -36,6 +38,7 @@ class Simulation:
         self.car = car
         self.dispatcher = dispatcher
         self.metrics = metrics_collector
+        self.traffic_generator = traffic_generator
         self.verbose = verbose
         
         self.current_time = 0
@@ -69,6 +72,24 @@ class Simulation:
         # 1. Process passenger arrivals
         if self.current_time in self.scheduled_arrivals:
             for passenger in self.scheduled_arrivals[self.current_time]:
+                self.building.add_passenger(passenger)
+                self.emit(PassengerSpawned(
+                    self.current_time,
+                    passenger.passenger_id,
+                    passenger.source_floor,
+                    passenger.target_floor
+                ))
+                self.emit(CallRegistered(
+                    self.current_time,
+                    passenger.source_floor,
+                    passenger.direction
+                ))
+
+        # 1b. Process stochastic passenger arrivals
+        if self.traffic_generator is not None:
+            new_passengers = self.traffic_generator.generate(self.current_time, RNG)
+            for passenger in new_passengers:
+                self.metrics.register_passenger(passenger)
                 self.building.add_passenger(passenger)
                 self.emit(PassengerSpawned(
                     self.current_time,
@@ -135,5 +156,6 @@ class Simulation:
         """Run the simulation loop until all calls are completed or limit reached."""
         while (self.building.has_pending_calls() or 
                self.car.passenger_count > 0 or 
-               any(t > self.current_time for t in self.scheduled_arrivals)) and self.current_time < max_ticks:
+               any(t > self.current_time for t in self.scheduled_arrivals) or
+               (self.traffic_generator is not None and self.current_time < max_ticks)) and self.current_time < max_ticks:
             self.step()

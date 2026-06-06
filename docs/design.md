@@ -21,7 +21,7 @@ The simulator is explicitly separated into two independent layers connected by a
 flowchart TD
     subgraph Core ["CORE LAYER (Deterministic Core)"]
         direction LR
-        Simulation["Simulation"] --> Car["Car"] --> Building["Building"] --> Passenger["Passenger"]
+        Simulation["Simulation"] --> Building["Building"] --> Car["Car"] --> Passenger["Passenger"]
     end
 
     Dispatcher["policy/base.py: Dispatcher Interface"]
