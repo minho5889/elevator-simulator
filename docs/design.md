@@ -47,14 +47,23 @@ flowchart TD
 ## 2. Time, Event, and Reproduction Models
 
 ### Fixed-Tick Time Model
-To keep Tier 0 transparent and easy to trace, `simulation.py` runs on a **fixed-tick loop** (each step is 1 tick). 
+To keep Tier 0 and Tier 1 transparent and easy to trace, `simulation.py` runs on a **fixed-tick loop** (each step is 1 tick). 
 * The car moves exactly 1 floor per tick.
 * Doors stay open for exactly 2 ticks.
 * Ticking time increment is linear: `current_time += 1`.
 * *Upgrade Path:* SimPy is the designated Tier 2 upgrade path to migrate from fixed-tick stepping to asynchronous, event-driven discrete scheduling.
 
+### Stochastic Traffic Generation (Tier 1)
+To model realistic building usage, passenger arrivals are generated stochastically using the `TrafficGenerator` module:
+* **Arrival Rate:** Determines the probability (0.0 to 1.0) of a passenger spawning at any given simulation tick.
+* **Profiles:** Supports three pre-defined traffic distribution patterns:
+  * `UNIFORM`: Passengers spawn on any floor, heading to any other floor with uniform probability.
+  * `DOWN_PEAK` (Morning rush): Passengers spawn on upper floors (1 to 4) heading to the lobby (floor 0).
+  * `UP_PEAK` (Evening rush): Passengers spawn at the lobby (floor 0) heading to upper floors (1 to 4).
+* The generator is invoked by the `Simulation` during its tick step and utilizes the central `RNG` for deterministic behavior.
+
 ### Domain Events (Logging & Metrics Only)
-All state changes emit rich domain events (e.g. `PassengerSpawned`, `CarMoved`, `DoorOpened`) defined in `events.py`.
+All state changes emit rich domain events (e.g. `PassengerSpawned`, `CallRegistered`, `CarArrived`, `DoorOpened`, `PassengerBoarded`, `PassengerDeboarded`, `DoorClosed`, `CarMoved`) defined in `events.py`.
 * **Important:** These events are used **strictly** for logging, terminal tracing, and metrics collection (`metrics.py`). 
 * They do **not** trigger or schedule actions inside the simulation engine. This keeps the time stepping simple and robust.
 
@@ -64,7 +73,19 @@ All state changes emit rich domain events (e.g. `PassengerSpawned`, `CarMoved`, 
 
 ---
 
-## 3. Agentic Design & Gemini Non-Determinism
+## 3. Rate Limits & API Quotas
+
+To ensure reliability and respect Google AI Studio Free Tier limits (which impose strict rate limits and daily quotas), the project incorporates several protection strategies:
+
+* **Rate-Limiting Sleeps:** In `DispatcherAgent`, we insert a 13-second wait (`time.sleep(13)`) before the initial state observation tool call, and another 13-second wait before calling `.structured_output()`. This 26-second delay per tick prevents hitting Google's 15 Requests Per Minute (RPM) limits.
+* **Offline Baseline Mode (Quota Resilience):** The Heuristic LOOK baseline dispatcher operates 100% offline without requiring a `GEMINI_API_KEY`.
+* **Skipping Live Runs:** If the `GEMINI_API_KEY` is not detected in the environment or `.env` file, the runners (`run_tier0.py` and `run_tier1.py`) skip the agentic run and gracefully output the heuristic baseline results, preventing runtime crashes.
+* **Quota Exhaustion Handling:** In `run_tier1.py`, the agentic execution is wrapped in a `try-except` block. If a quota exhaustion limit is reached, it catches the exception and logs a clean, informative error message instructing the developer how to resolve the issue (e.g. by enabling pay-as-you-go billing).
+* **Conserving Daily Quotas:** The default duration for evaluation runs is capped at 50 ticks to conserve API calls. A `--full` command-line flag is available to scale the run up to 150 ticks for paid tiers.
+
+---
+
+## 4. Agentic Design & Gemini Non-Determinism
 
 ### Two-Phase Tool Calling + Structured Output
 Gemini 3.5 Flash requires tool outputs to be mapped with both `id` and `name` attributes inside `FunctionResponse`. To ensure high reliability, the `DispatcherAgent` executes a two-phase flow:
@@ -79,11 +100,11 @@ Gemini 3.5 Flash requires tool outputs to be mapped with both `id` and `name` at
 
 ---
 
-## 4. Scaling Path (Tiers 1-3)
+## 5. Scaling Path (Tiers 0-3)
 
 The project is structured to easily scale across tiers:
 
-* **Tier 0 (Current):** 1 car, 5 floors, scripted passengers, LOOK vs. Agentic Dispatcher.
-* **Tier 1 (Stochastic):** Introduce stochastic passenger spawns using the seeded `RNG` inside the metrics collector.
-* **Tier 2 (Multi-Car Bank):** Upgrade to an elevator bank (3-6 cars) using the Strands **Agents-as-Tools** primitive (a supervisor agent overseeing individual car agents) or a state **Graph**. Upgrades the core to SimPy.
-* **Tier 3 (Skyscraper):** Swarm and Workflow orchestration across hierarchical building controllers, exposing MCP servers for config and performance metrics.
+* **Tier 0 (Walking Skeleton) [Completed]:** 1 car, 5 floors, scripted passengers, LOOK vs. Agentic Dispatcher.
+* **Tier 1 (Stochastic Traffic) [Completed]:** Introduce stochastic passenger spawns using the seeded `RNG` and custom traffic profiles (`UNIFORM`, `UP_PEAK`, `DOWN_PEAK`).
+* **Tier 2 (Multi-Car Bank) [Next]:** Upgrade to an elevator bank (3-6 cars) using a SimPy time engine. Coordination will leverage Strands **Agents-as-Tools** supervisor primitives (a supervisor agent overseeing individual car agents) or a state **Graph**.
+* **Tier 3 (Skyscraper) [Planned]:** Swarm and Workflow orchestration across hierarchical building controllers, exposing MCP servers for config and performance metrics.

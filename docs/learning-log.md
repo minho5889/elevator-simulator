@@ -30,3 +30,23 @@ This log is seeded for tracking your mastery of the Strands Agents SDK and agent
 * **Where it lives in Code:**
   * [src/elevatorsim/policy/agentic.py](file:///Users/minholee/Projects/elevator-simulator/src/elevatorsim/policy/agentic.py#L52-L58): We first call `agent("Observe state...")` to let it execute tools. Then we call `agent.structured_output(...)`. The second call automatically carries forward the tools' outputs from the history.
 * **Key Learning:** This two-phase sequence avoids mixing tool-execution steps and output-schema formatting constraints in a single API call, resolving common issues on Gemini 3.5 Flash.
+
+---
+
+## 2. Gemini 3.5 Flash Integration Lessons
+
+### A. Deprecated Parameter Behaviors
+* **Sampling Parameters:** Configuring `temperature`, `top_p`, or `top_k` on `gemini-3.5-flash` results in API schema errors. The model controls its own sampling configuration.
+* **Non-Determinism:** The combination of deprecated temperature control and default-active thought preservation means agent decisions are inherently non-reproducible. Evaluation must rely on statistical comparison over multiple seeds against a deterministic LOOK baseline.
+* **Thinking Level Configuration:** While thinking is active by default, the `thinking_level` parameter can be configured to `"minimal"` inside the `thinking_config` parameter dictionary. This is crucial for simple routing tasks to minimize execution latency and token usage.
+
+### B. Strands Structured Output & Tool Call Requirements
+* **FunctionResponse ID and Name:** Gemini 3.5 Flash requires all tool execution responses to contain both the tool's execution `id` and the function `name`. Omitting either causes an immediate `400 INVALID_ARGUMENT` error. The underlying Python SDK `google-genai >= 2.0.0` is required to ensure these fields are populated correctly.
+* **Two-Phase Separation:** Combining tool calling and structured formatting constraints in a single step often fails. Splitting it into a text-based tool execution turn (Phase 1) followed by a schema validation request (Phase 2) ensures that the model accesses the correct tool-gathered context before outputting structured JSON.
+
+---
+
+## 3. Rate-Limiting & Quota Lessons
+* **Google AI Studio Free Tier Pace:** Free tier keys are strictly limited to 15 RPM. A single simulator tick requiring a two-phase dispatch flow consumes 2 requests. 
+* **Safe Delay Pacing:** Sleeping for 13 seconds between API calls inside `DispatcherAgent` effectively restricts the rate to under 5 RPM, providing a comfortable buffer against 429 errors.
+* **Resilience Patterns:** Incorporating a fallback LOOK heuristic, checking for `GEMINI_API_KEY` before starting agent runs, and catching quota limit exceptions prevents local pipeline failures and enables continuous development.

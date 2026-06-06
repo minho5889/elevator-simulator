@@ -46,7 +46,7 @@ According to the [Google Gemini 3.5 Migration Guide](https://ai.google.dev/gemin
 ### Thinking Configurations
 * **`thinking_budget` is Deprecated:** It is replaced by the `thinking_level` string enum.
 * **Levels:** `minimal`, `low`, `medium` (default), and `high`.
-* **Decision for Tier 0:** For a simple 1-car, 5-floor dispatching problem, active reasoning is unnecessary and adds latency/token costs. We will configure `"thinking_level": "minimal"` (or `"low"`) for Tier 0, and scale it up in Tier 2 when multi-car zoning and scheduling demand reasoning.
+* **Decision for Tier 0 & Tier 1:** For a simple 1-car, 5-floor dispatching problem, active reasoning is unnecessary and adds latency/token costs. We configure `"thinking_level": "minimal"` inside the `"thinking_config"` block to save on API overhead.
 
 ### Model Initialization Example
 ```python
@@ -56,7 +56,9 @@ model = GeminiModel(
     client_args={"api_key": os.getenv("GEMINI_API_KEY")},
     model_id="gemini-3.5-flash",
     params={
-        "thinking_level": "minimal"
+        "thinking_config": {
+            "thinking_level": "minimal"
+        }
     }
 )
 ```

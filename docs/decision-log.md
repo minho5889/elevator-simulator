@@ -61,3 +61,25 @@ This log documents key architectural decisions made during the design and develo
 * **Rationale for Choice:**
   * FCFS is extremely inefficient and not representative of real-world elevator baselines.
   * LOOK is standard, easy to implement, and serves as a highly competitive benchmark against the agentic dispatcher.
+
+---
+
+## Decision 6: Rate Limiting and Quota Management for API Interactions
+
+* **Context:** Free Tier Google AI Studio API limits restrict developers to 15 RPM (Requests Per Minute) and small daily limits. Running simulations step-by-step can easily trigger HTTP 429 rate limit exceptions.
+* **Proposed Option:** Introduce a mandatory 13-second rate-limiting delay between LLM calls (first state observation and final decision) to pace calls to under 5 RPM. Additionally, skip live runs if the `GEMINI_API_KEY` is not found, default simulation runs to a short 50-tick count with an optional `--full` flag for 150-ticks, and catch quota exhaustion errors gracefully to avoid breaking the CLI runner.
+* **Alternative Rejected:** Run full-speed steps or require a paid plan for basic execution.
+* **Rationale for Choice:**
+  * Ensures that anyone can run the walking skeleton offline via the LOOK baseline or run a short comparison without quota failures.
+  * Paces requests safely below the free tier limit, preventing aborted simulation runs.
+
+---
+
+## Decision 7: Stochastic Passenger Generation Profiles (Tier 1)
+
+* **Context:** Evaluating policies using only deterministic scripted passenger sequences is prone to overfitting and does not model real-world peaks (morning rush, evening rush).
+* **Proposed Option:** Implement a `TrafficGenerator` module inside the simulator core, parameterized by an arrival rate and profile shapes (`UNIFORM`, `DOWN_PEAK` morning rush, and `UP_PEAK` evening rush).
+* **Alternative Rejected:** Hardcoding scripting logic or putting spawning rules inside the policy/agent layer.
+* **Rationale for Choice:**
+  * Preserves the decoupling between the deterministic core and the policy layer.
+  * Allows evaluating dispatchers on standard traffic patterns to measure average wait/transit times under heavier loads.
