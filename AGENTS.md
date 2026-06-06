@@ -21,3 +21,11 @@ This file contains persistent, cross-session instructions and guidelines for any
 
 ## 3. Dependency Controls
 * Always pin `strands-agents == 1.42.0` and `google-genai >= 2.0.0` in `pyproject.toml` to guarantee compatibility with Gemini 3.5 Flash's strict `FunctionResponse` rules. Commit `uv.lock`.
+
+---
+
+## 4. Git Agent Workflow Config
+* **Workflow Defaults:**
+  * `AUTO_PUSH = true` (Autonomously push committed changes directly to upstream).
+  * `MSG_FORMAT = agent` (Use the dense machine-parseable double-line format).
+  * `PROTECTED_BRANCHES = []` (Branches requiring explicit verification before push).
