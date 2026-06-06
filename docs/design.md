@@ -10,48 +10,62 @@ The simulator is explicitly separated into two independent layers connected by a
 
 1. **Deterministic Core:**
    * Contains physical structures (`Car`, `Building`), state models (`Passenger`), and time orchestration (`Simulation`).
-   * Written in pure, dependency-free Python (no LLM, no Strands, no third-party libraries).
+   * Written in pure, dependency-free Python (no LLM, no Strands, no third-party libraries beyond SimPy).
    * Fully unit-testable offline with zero model dependencies or mock wrappers.
+   * **Tier 2 upgrade:** supports multi-car banks (1-6 cars) with per-car stepping in `simulation.py`.
 2. **Policy Dispatcher Seam:**
-   * Defined by the `Dispatcher` Protocol in `src/elevatorsim/policy/base.py`.
-   * Standardizes the `dispatch(simulation)` call signature.
+   * Defined by the `Dispatcher` and `GroupDispatcher` Protocols in `src/elevatorsim/policy/base.py`.
+   * Single-car: `dispatch(simulation) -> int | None` (legacy Tier 0/1).
+   * Multi-car: `dispatch_group(simulation) -> Dict[str, int | None]` (Tier 2+).
    * Enables seamless swapping between heuristic and LLM-backed Strands dispatchers.
 
 ```mermaid
 flowchart TD
     subgraph Core ["CORE LAYER (Deterministic Core)"]
         direction LR
-        Simulation["Simulation"] --> Building["Building"] --> Car["Car"] --> Passenger["Passenger"]
+        Simulation["Simulation"] --> Building["Building"]
+        Simulation --> CarBank["Car Bank (1..6)"]
+        CarBank --> Car1["Car C1"]
+        CarBank --> Car2["Car C2"]
+        CarBank --> CarN["Car C_N"]
+        Building --> Passenger["Passenger"]
     end
 
-    Dispatcher["policy/base.py: Dispatcher Interface"]
+    subgraph Protocols ["policy/base.py"]
+        direction TB
+        Legacy["Dispatcher Protocol<br>dispatch(sim) → int"]
+        Group["GroupDispatcher Protocol<br>dispatch_group(sim) → Dict"]
+    end
 
-    Heuristic["HeuristicDispatcher<br>(LOOK Heuristic Baseline)"]
+    Heuristic["HeuristicDispatcher<br>(LOOK single-car)"]
+    GroupHeuristic["GroupHeuristicDispatcher<br>(Nearest-idle-car LOOK)"]
     Agent["DispatcherAgent<br>(Strands + Gemini-3.5-Flash)"]
 
-    Core -.->|queries state| Dispatcher
-    Dispatcher ==> Heuristic
-    Dispatcher ==> Agent
+    Core -.->|queries state| Protocols
+    Legacy ==> Heuristic
+    Legacy ==> Agent
+    Group ==> GroupHeuristic
 
     classDef core fill:#e1f5fe,stroke:#039be5,stroke-width:2px,color:#000;
     classDef interface fill:#fff3e0,stroke:#ffb74d,stroke-width:2px,color:#000;
     classDef impl fill:#f3e5f5,stroke:#ba68c8,stroke-width:2px,color:#000;
 
-    class Core,Simulation,Car,Building,Passenger core;
-    class Dispatcher interface;
-    class Heuristic,Agent impl;
+    class Core,Simulation,Building,CarBank,Car1,Car2,CarN,Passenger core;
+    class Protocols,Legacy,Group interface;
+    class Heuristic,GroupHeuristic,Agent impl;
 ```
 
 ---
 
 ## 2. Time, Event, and Reproduction Models
 
-### Fixed-Tick Time Model
-To keep Tier 0 and Tier 1 transparent and easy to trace, `simulation.py` runs on a **fixed-tick loop** (each step is 1 tick). 
-* The car moves exactly 1 floor per tick.
-* Doors stay open for exactly 2 ticks.
-* Ticking time increment is linear: `current_time += 1`.
-* *Upgrade Path:* SimPy is the designated Tier 2 upgrade path to migrate from fixed-tick stepping to asynchronous, event-driven discrete scheduling.
+### Multi-Car Tick Engine (Tier 2)
+The simulation engine runs a **per-car fixed-tick loop** where each `step()` call advances all cars in the bank by one tick:
+* Each car moves exactly 1 floor per tick (independent of other cars).
+* Doors stay open for exactly 2 ticks per car.
+* All cars are stepped sequentially within a single `step()` call.
+* **SimPy import:** `simpy` is imported and available for future event-driven scheduling in Tier 3 (variable travel speeds, express elevators). The current Tier 2 engine uses SimPy's namespace but preserves the tick-based stepping API for WebSocket compatibility.
+* **Group dispatch:** After all cars are stepped, the dispatcher is queried once per tick. `GroupDispatcher.dispatch_group()` returns assignments for all idle cars simultaneously.
 
 ### Stochastic Traffic Generation (Tier 1)
 To model realistic building usage, passenger arrivals are generated stochastically using the `TrafficGenerator` module:
@@ -63,9 +77,11 @@ To model realistic building usage, passenger arrivals are generated stochastical
 * The generator is invoked by the `Simulation` during its tick step and utilizes the central `RNG` for deterministic behavior.
 
 ### Domain Events (Logging & Metrics Only)
-All state changes emit rich domain events (e.g. `PassengerSpawned`, `CallRegistered`, `CarArrived`, `DoorOpened`, `PassengerBoarded`, `PassengerDeboarded`, `DoorClosed`, `CarMoved`) defined in `events.py`.
+All state changes emit rich domain events (e.g. `PassengerSpawned`, `CallRegistered`, `CarArrived`, `DoorOpened`, `PassengerBoarded`, `PassengerDeboarded`, `DoorClosed`, `CarMoved`, `CarDispatched`) defined in `events.py`.
+* **`CarDispatched` (Tier 2):** Emitted when the group dispatcher assigns a car to a target floor.
 * **Important:** These events are used **strictly** for logging, terminal tracing, and metrics collection (`metrics.py`). 
 * They do **not** trigger or schedule actions inside the simulation engine. This keeps the time stepping simple and robust.
+* All events carry a `car_id` field, enabling the frontend to track per-car state in multi-car mode.
 
 ### Reproducibility & Seeded RNG
 * **Seeded RNG:** `config.py` exports a central `RNG` instance (`random.Random(seed)`). Any stochastic logic must use this central generator to ensure that runs remain deterministic.
@@ -106,7 +122,7 @@ The project is structured to easily scale across tiers:
 
 * **Tier 0 (Walking Skeleton) [Completed]:** 1 car, 5 floors, scripted passengers, LOOK vs. Agentic Dispatcher.
 * **Tier 1 (Stochastic Traffic) [Completed]:** Introduce stochastic passenger spawns using the seeded `RNG` and custom traffic profiles (`UNIFORM`, `UP_PEAK`, `DOWN_PEAK`).
-* **Tier 2 (Multi-Car Bank) [Next]:** Upgrade to an elevator bank (3-6 cars) using a SimPy time engine. Coordination will leverage Strands **Agents-as-Tools** supervisor primitives (a supervisor agent overseeing individual car agents) or a state **Graph**.
+* **Tier 2 (Multi-Car Bank) [Completed]:** Upgraded to an elevator bank (1-6 configurable cars) with `GroupDispatcher` protocol and nearest-idle-car LOOK group scheduling. SimPy imported for future event-driven scheduling. Frontend renders multi-shaft car tracks. Full backward compatibility with single-car mode and preset caches.
 * **Tier 3 (Skyscraper) [Planned]:** Swarm and Workflow orchestration across hierarchical building controllers, exposing MCP servers for config and performance metrics.
 
 ---

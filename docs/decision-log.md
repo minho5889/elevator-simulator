@@ -105,3 +105,16 @@ This log documents key architectural decisions made during the design and develo
   * Synchronized inputs are easily cloned and scheduled in both LOOK and Gemini simulation queues.
   * Background threading ensures other API requests and concurrent WebSocket sessions remain active and responsive during agent thinking states.
 
+---
+
+## Decision 10: Multi-Car Per-Car Stepping with GroupDispatcher Protocol (Tier 2)
+
+* **Context:** Upgrading from a single elevator car to a configurable bank (1-6 cars) requires coordinated dispatching and independent car stepping.
+* **Proposed Option:** Maintain the existing tick-based `step()` API but iterate over all cars per tick. Introduce a new `GroupDispatcher` protocol with `dispatch_group(sim) -> Dict[str, int | None]` that assigns targets to all idle cars in a single call. The legacy single-car `Dispatcher` protocol is supported via a compatibility shim that temporarily swaps `sim.car` for each idle car.
+* **Alternative Rejected:** Full SimPy process-per-car architecture with `yield` semantics.
+* **Rationale for Choice:**
+  * The per-car tick loop preserves full backward compatibility with single-car mode, existing preset caches, and the WebSocket tick protocol.
+  * `GroupDispatcher` enables true group scheduling (nearest-idle-car) without breaking the `Dispatcher` interface.
+  * Full SimPy process architecture was deferred to Tier 3 where variable car speeds and non-integer timing would justify the added complexity.
+  * The `GroupHeuristicDispatcher` implements both protocols, making it a drop-in replacement for either mode.
+

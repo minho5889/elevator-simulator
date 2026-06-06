@@ -12,6 +12,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "fastapi>=0.136.3",
     "uvicorn>=0.49.0",
+    "simpy>=4.1.2",
 ]
 
 [dependency-groups]

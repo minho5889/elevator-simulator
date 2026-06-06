@@ -26,7 +26,7 @@ from elevatorsim.core.metrics import MetricsCollector  # noqa: E402
 from elevatorsim.core.passenger import Passenger  # noqa: E402
 from elevatorsim.core.simulation import Simulation  # noqa: E402
 from elevatorsim.core.traffic import TrafficGenerator  # noqa: E402
-from elevatorsim.policy.heuristic import HeuristicDispatcher  # noqa: E402
+from elevatorsim.policy.heuristic import HeuristicDispatcher, GroupHeuristicDispatcher  # noqa: E402
 from elevatorsim.policy.agentic import DispatcherAgent  # noqa: E402
 from elevatorsim.config import seed_rng, get_gemini_api_key  # noqa: E402
 from elevatorsim.core.events import Event  # noqa: E402
@@ -38,7 +38,7 @@ logger = logging.getLogger("elevatorsim.web")
 app = FastAPI(
     title="Elevator Simulator API",
     description="Backend API for the A/B Elevator Simulator Dashboard",
-    version="0.1.0"
+    version="0.2.0"
 )
 
 # Enable CORS for frontend development
@@ -57,6 +57,7 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 class SimulationRequest(BaseModel):
     seed: int = Field(default=42, description="RNG Seed for reproducibility")
     num_floors: int = Field(default=5, description="Number of floors (5-10)")
+    num_cars: int = Field(default=1, description="Number of elevator cars (1-6)")
     arrival_rate: float = Field(default=0.2, description="Arrival rate probability (0.0 to 1.0)")
     profile: str = Field(default="UNIFORM", description="UNIFORM, DOWN_PEAK, or UP_PEAK")
     max_ticks: int = Field(default=50, description="Maximum simulation duration")
@@ -92,70 +93,111 @@ def serialize_event(event: Event) -> Dict[str, Any]:
             data[k] = v
     return data
 
+
+def _build_car_bank(num_cars: int) -> List[Car]:
+    """Create a bank of elevator cars starting at floor 0."""
+    return [Car(car_id=f"C{i+1}", initial_floor=0) for i in range(num_cars)]
+
+
+def _make_simulation(
+    dispatcher: Any,
+    num_floors: int,
+    num_cars: int,
+    arrival_rate: float,
+    profile: str,
+    traffic_generator: Optional[Any] = None,
+    verbose: bool = False,
+) -> Simulation:
+    """Factory to construct a Simulation with the right car bank."""
+    building = Building(num_floors=num_floors)
+    cars = _build_car_bank(num_cars)
+    metrics = MetricsCollector()
+
+    if traffic_generator is None:
+        traffic_generator = TrafficGenerator(num_floors=num_floors, arrival_rate=arrival_rate, profile=profile)
+
+    sim = Simulation(
+        building=building,
+        car=cars[0],
+        dispatcher=dispatcher,
+        metrics_collector=metrics,
+        traffic_generator=traffic_generator,
+        verbose=verbose,
+        extra_cars=cars[1:] if len(cars) > 1 else None,
+    )
+    return sim
+
+
 def run_single_simulation(
     dispatcher: Any,
     seed: int,
     num_floors: int,
     arrival_rate: float,
     profile: str,
-    max_ticks: int
+    max_ticks: int,
+    num_cars: int = 1,
 ) -> Dict[str, Any]:
     """Execute a simulation run and return serialized events and final metrics."""
     seed_rng(seed)
-    
-    building = Building(num_floors=num_floors)
-    car = Car(car_id="C1", initial_floor=0)
-    metrics = MetricsCollector()
-    traffic = TrafficGenerator(num_floors=num_floors, arrival_rate=arrival_rate, profile=profile)
-    
-    # Instantiate simulation in silent mode (verbose=False) to avoid stdout spam
-    sim = Simulation(
-        building=building,
-        car=car,
+
+    sim = _make_simulation(
         dispatcher=dispatcher,
-        metrics_collector=metrics,
-        traffic_generator=traffic,
-        verbose=False
+        num_floors=num_floors,
+        num_cars=num_cars,
+        arrival_rate=arrival_rate,
+        profile=profile,
     )
-    
+
     # List to collect events
     events_log: List[Dict[str, Any]] = []
-    
+
     # Custom listener to capture events
     def event_listener(ev: Event):
         events_log.append(serialize_event(ev))
         
     sim.register_listener(event_listener)
-    
+
     # Run the simulation
     sim.run_until_complete(max_ticks=max_ticks)
-    
+
     return {
         "events": events_log,
-        "metrics": metrics.get_summary()
+        "metrics": sim.metrics.get_summary()
     }
 
 @app.post("/api/simulate")
 def run_simulation(req: SimulationRequest):
     """Run Heuristic and Agentic simulations for the given parameters."""
-    logger.info(f"Received simulation request: profile={req.profile}, seed={req.seed}, ticks={req.max_ticks}")
+    logger.info(f"Received simulation request: profile={req.profile}, seed={req.seed}, ticks={req.max_ticks}, cars={req.num_cars}")
     
     if req.num_floors < 2 or req.num_floors > 10:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Number of floors must be between 2 and 10."
         )
+
+    if req.num_cars < 1 or req.num_cars > 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Number of cars must be between 1 and 6."
+        )
         
     # 1. Run LOOK Heuristic (always runs instantly)
     try:
-        heuristic_dispatcher = HeuristicDispatcher()
+        # Use group dispatcher for multi-car, legacy for single-car
+        if req.num_cars > 1:
+            heuristic_dispatcher = GroupHeuristicDispatcher()
+        else:
+            heuristic_dispatcher = HeuristicDispatcher()
+
         heuristic_result = run_single_simulation(
             dispatcher=heuristic_dispatcher,
             seed=req.seed,
             num_floors=req.num_floors,
             arrival_rate=req.arrival_rate,
             profile=req.profile,
-            max_ticks=req.max_ticks
+            max_ticks=req.max_ticks,
+            num_cars=req.num_cars,
         )
     except Exception as e:
         logger.error(f"Heuristic simulation failed: {e}")
@@ -185,7 +227,8 @@ def run_simulation(req: SimulationRequest):
                         num_floors=req.num_floors,
                         arrival_rate=req.arrival_rate,
                         profile=req.profile,
-                        max_ticks=req.max_ticks
+                        max_ticks=req.max_ticks,
+                        num_cars=req.num_cars,
                     )
                 except Exception as e:
                     logger.error(f"Agentic simulation failed: {e}")
@@ -254,6 +297,7 @@ async def websocket_simulate(websocket: WebSocket):
     
     seed = 42
     num_floors = 5
+    num_cars = 1
     arrival_rate = 0.2
     profile = "UNIFORM"
     max_ticks = 50
@@ -281,6 +325,7 @@ async def websocket_simulate(websocket: WebSocket):
                 config = message.get("config", {})
                 seed = config.get("seed", 42)
                 num_floors = config.get("num_floors", 5)
+                num_cars = config.get("num_cars", 1)
                 arrival_rate = config.get("arrival_rate", 0.2)
                 profile = config.get("profile", "UNIFORM")
                 run_agentic = config.get("run_agentic", True)
@@ -291,18 +336,24 @@ async def websocket_simulate(websocket: WebSocket):
                 traffic_generator = TrafficGenerator(num_floors=num_floors, arrival_rate=arrival_rate, profile=profile)
                 passenger_counter = 0
                 
-                # Initialize LOOK
+                # Select dispatcher based on car count
+                if num_cars > 1:
+                    look_dispatcher = GroupHeuristicDispatcher()
+                else:
+                    look_dispatcher = HeuristicDispatcher()
+                
+                # Initialize LOOK simulation
+                look_cars = _build_car_bank(num_cars)
                 look_building = Building(num_floors=num_floors)
-                look_car = Car(car_id="C1", initial_floor=0)
                 look_metrics = MetricsCollector()
-                look_dispatcher = HeuristicDispatcher()
                 look_sim = Simulation(
                     building=look_building,
-                    car=look_car,
+                    car=look_cars[0],
                     dispatcher=look_dispatcher,
                     metrics_collector=look_metrics,
                     traffic_generator=None,
-                    verbose=False
+                    verbose=False,
+                    extra_cars=look_cars[1:] if len(look_cars) > 1 else None,
                 )
                 look_tick_events = []
                 look_sim.register_listener(look_listener)
@@ -311,17 +362,18 @@ async def websocket_simulate(websocket: WebSocket):
                 gemini_sim = None
                 gemini_tick_events = []
                 if run_agentic:
+                    gemini_cars = _build_car_bank(num_cars)
                     gemini_building = Building(num_floors=num_floors)
-                    gemini_car = Car(car_id="C1", initial_floor=0)
                     gemini_metrics = MetricsCollector()
                     gemini_dispatcher = DispatcherAgent()
                     gemini_sim = Simulation(
                         building=gemini_building,
-                        car=gemini_car,
+                        car=gemini_cars[0],
                         dispatcher=gemini_dispatcher,
                         metrics_collector=gemini_metrics,
                         traffic_generator=None,
-                        verbose=False
+                        verbose=False,
+                        extra_cars=gemini_cars[1:] if len(gemini_cars) > 1 else None,
                     )
                     gemini_sim.register_listener(gemini_listener)
                     
@@ -329,6 +381,7 @@ async def websocket_simulate(websocket: WebSocket):
                 await websocket.send_json({
                     "type": "state",
                     "current_tick": 0,
+                    "num_cars": num_cars,
                     "heuristic_events": [],
                     "agentic_events": [],
                     "agentic_error": None
@@ -377,12 +430,11 @@ async def websocket_simulate(websocket: WebSocket):
                 
                 # Step Gemini Agent in threadpool if enabled
                 if gemini_sim is not None:
-                    # Check if the agent is about to run a dispatch decision
-                    is_thinking = (
-                        gemini_sim.car.door_state == "CLOSED" and
-                        gemini_sim.car.target_floor is None and
-                        (gemini_sim.building.has_pending_calls() or gemini_sim.car.passenger_count > 0)
-                    )
+                    # Check if any car in the agent sim is about to need a dispatch decision
+                    is_thinking = any(
+                        c.door_state == "CLOSED" and c.target_floor is None
+                        for c in gemini_sim.cars
+                    ) and (gemini_sim.building.has_pending_calls() or any(c.passenger_count > 0 for c in gemini_sim.cars))
                     
                     if is_thinking:
                         await websocket.send_json({"type": "thinking"})
@@ -403,6 +455,7 @@ async def websocket_simulate(websocket: WebSocket):
                 await websocket.send_json({
                     "type": "state",
                     "current_tick": next_tick,
+                    "num_cars": num_cars,
                     "heuristic_events": look_tick_events,
                     "agentic_events": gemini_tick_events,
                     "agentic_error": agentic_error
@@ -462,17 +515,18 @@ async def websocket_simulate(websocket: WebSocket):
                     gemini_sim = None
                 elif gemini_sim is None and look_sim is not None:
                     # Dynamically instantiate Gemini if it was disabled but is now enabled
+                    gemini_cars = _build_car_bank(num_cars)
                     gemini_building = Building(num_floors=num_floors)
-                    gemini_car = Car(car_id="C1", initial_floor=0)
                     gemini_metrics = MetricsCollector()
                     gemini_dispatcher = DispatcherAgent()
                     gemini_sim = Simulation(
                         building=gemini_building,
-                        car=gemini_car,
+                        car=gemini_cars[0],
                         dispatcher=gemini_dispatcher,
                         metrics_collector=gemini_metrics,
                         traffic_generator=None,
-                        verbose=False
+                        verbose=False,
+                        extra_cars=gemini_cars[1:] if len(gemini_cars) > 1 else None,
                     )
                     gemini_sim.register_listener(gemini_listener)
                     # Sync current tick of gemini with look_sim

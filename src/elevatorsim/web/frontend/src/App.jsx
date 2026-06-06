@@ -7,17 +7,24 @@ import {
 
 const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
-// Reconstruct simulation state at a specific tick
-function reconstructState(events, tick) {
+// Reconstruct simulation state at a specific tick (supports multi-car)
+function reconstructState(events, tick, numCars = 1) {
   const state = {
-    carFloor: 0,
-    targetFloor: null,
-    doorState: "CLOSED",
-    onboardPassengers: [],
+    cars: {},  // keyed by car_id (e.g. "C1", "C2")
     floorQueues: {},
     logs: [],
     rawEvents: []
   };
+
+  // Initialize cars
+  for (let c = 1; c <= numCars; c++) {
+    state.cars[`C${c}`] = {
+      floor: 0,
+      targetFloor: null,
+      doorState: "CLOSED",
+      onboardPassengers: []
+    };
+  }
 
   // Initialize floor queues
   for (let i = 0; i < 10; i++) {
@@ -41,6 +48,9 @@ function reconstructState(events, tick) {
     state.rawEvents.push(ev);
     state.logs.push(ev.message);
 
+    // Resolve which car this event applies to; fall back to "C1" for legacy single-car events
+    const carId = ev.car_id || 'C1';
+
     switch (ev.event_type) {
       case "PassengerSpawned": {
         const { passenger_id, source, target } = ev;
@@ -50,45 +60,46 @@ function reconstructState(events, tick) {
       case "PassengerBoarded": {
         const { passenger_id, floor } = ev;
         state.floorQueues[floor] = state.floorQueues[floor].filter(p => p.id !== passenger_id);
-        state.onboardPassengers.push({ id: passenger_id, target: passengerTargets[passenger_id] || 0 });
+        if (state.cars[carId]) {
+          state.cars[carId].onboardPassengers.push({ id: passenger_id, target: passengerTargets[passenger_id] || 0 });
+        }
         break;
       }
       case "PassengerDeboarded": {
         const { passenger_id } = ev;
-        state.onboardPassengers = state.onboardPassengers.filter(p => p.id !== passenger_id);
+        if (state.cars[carId]) {
+          state.cars[carId].onboardPassengers = state.cars[carId].onboardPassengers.filter(p => p.id !== passenger_id);
+        }
         break;
       }
       case "CarMoved": {
-        state.carFloor = ev.to_floor;
+        if (state.cars[carId]) {
+          state.cars[carId].floor = ev.to_floor;
+        }
         break;
       }
       case "CarArrived": {
-        state.carFloor = ev.floor;
+        if (state.cars[carId]) {
+          state.cars[carId].floor = ev.floor;
+        }
         break;
       }
       case "DoorOpened": {
-        state.doorState = "OPEN";
+        if (state.cars[carId]) {
+          state.cars[carId].doorState = "OPEN";
+        }
         break;
       }
       case "DoorClosed": {
-        state.doorState = "CLOSED";
+        if (state.cars[carId]) {
+          state.cars[carId].doorState = "CLOSED";
+        }
         break;
       }
       default:
         break;
     }
   }
-
-  // Infer active target floor (find the next CarArrived after latest CarMoved)
-  let targetFloor = null;
-  const lastMove = events.find(ev => ev.time <= tick && ev.event_type === "CarMoved");
-  if (lastMove) {
-    const nextArrival = events.find(ev => ev.time >= lastMove.time && ev.event_type === "CarArrived");
-    if (nextArrival) {
-      targetFloor = nextArrival.floor;
-    }
-  }
-  state.targetFloor = targetFloor;
 
   return state;
 }
@@ -139,6 +150,7 @@ export default function App() {
   const [floors, setFloors] = useState(5);
   const [arrivalRate, setArrivalRate] = useState(0.2);
   const [maxTicks, setMaxTicks] = useState(50);
+  const [numCars, setNumCars] = useState(1);
   const [profile, setProfile] = useState('UNIFORM');
   
   // App status states
@@ -265,6 +277,7 @@ export default function App() {
         config: {
           seed: Number(seed),
           num_floors: Number(floors),
+          num_cars: Number(numCars),
           arrival_rate: Number(arrivalRate),
           profile: profile,
           max_ticks: Number(maxTicks),
@@ -433,8 +446,8 @@ export default function App() {
   };
 
   // Reconstruct States
-  const hState = reconstructState(heuristicData?.events, currentTick);
-  const aState = reconstructState(agenticData?.events, currentTick);
+  const hState = reconstructState(heuristicData?.events, currentTick, numCars);
+  const aState = reconstructState(agenticData?.events, currentTick, numCars);
 
   // Reconstruct Metrics
   const hMetricsAtTick = heuristicData?.metrics;
@@ -606,6 +619,18 @@ export default function App() {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-[var(--text-secondary)] flex justify-between">
+                <span>Elevator Cars</span>
+                <span className="font-semibold">{numCars}</span>
+              </label>
+              <input 
+                type="range" min="1" max="6" step="1"
+                value={numCars} onChange={(e) => setNumCars(Number(e.target.value))}
+                className="w-full accent-cyan-500"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-[var(--text-secondary)] flex justify-between">
                 <span>Max Ticks</span>
                 <span className="font-semibold">{maxTicks}</span>
               </label>
@@ -753,7 +778,8 @@ export default function App() {
               
               <ElevatorShaft 
                 state={hState} 
-                numFloors={floors} 
+                numFloors={floors}
+                numCars={numCars}
                 accentColor="var(--look-cyan)" 
                 onFloorClick={isInteractiveMode ? (fIdx) => setActiveSpawnFloor(fIdx) : null}
               />
@@ -800,7 +826,8 @@ export default function App() {
                 <>
                   <ElevatorShaft 
                     state={aState} 
-                    numFloors={floors} 
+                    numFloors={floors}
+                    numCars={numCars}
                     accentColor="var(--agent-violet)" 
                     onFloorClick={isInteractiveMode ? (fIdx) => setActiveSpawnFloor(fIdx) : null}
                   />
@@ -974,22 +1001,28 @@ export default function App() {
   );
 }
 
-// Elevator Shaft Component representing floors, car vertical translation, and queue indicators
-function ElevatorShaft({ state, numFloors, accentColor, onFloorClick }) {
-  // Reconstruct floors (ordered descending so lobby 0 is at bottom)
+// Elevator Shaft Component representing floors, multi-car vertical tracks, and queue indicators
+function ElevatorShaft({ state, numFloors, numCars = 1, accentColor, onFloorClick }) {
   const floorIndices = Array.from({ length: numFloors }, (_, i) => numFloors - 1 - i);
-  const carFloor = state.carFloor;
+  const carIds = Object.keys(state.cars || {});
 
-  // Calculate vertical percentage offset for absolute positioning of car
-  // lobby 0 is bottom, numFloors-1 is top.
-  const carBottomPercentage = (carFloor / (numFloors - 1)) * 82; // Bound positioning scale safely
+  // If no multi-car data, fall back to legacy single-car shape
+  const carsData = carIds.length > 0 ? state.cars : {
+    C1: {
+      floor: state.carFloor || 0,
+      targetFloor: state.targetFloor,
+      doorState: state.doorState || "CLOSED",
+      onboardPassengers: state.onboardPassengers || []
+    }
+  };
+
+  const carEntries = Object.entries(carsData);
 
   return (
     <div className="flex-1 flex bg-slate-950/60 border border-[var(--border-color)] rounded-lg p-3 min-h-[360px] relative">
       {/* Floor boundaries and queue details */}
       <div className="flex-1 flex flex-col justify-between">
         {floorIndices.map(fIdx => {
-          const isTarget = state.targetFloor === fIdx;
           const waitingQueue = state.floorQueues[fIdx] || [];
 
           return (
@@ -998,15 +1031,13 @@ function ElevatorShaft({ state, numFloors, accentColor, onFloorClick }) {
               onClick={() => onFloorClick && onFloorClick(fIdx)}
               className={`flex justify-between items-center py-2 h-10 border-b border-dashed border-slate-900 last:border-b-0 px-2 rounded transition-colors ${onFloorClick ? 'cursor-pointer hover:bg-slate-900/40' : ''}`}
             >
-              {/* Floor Label */}
               <div className="flex items-center gap-1">
-                <span className={`text-xs font-mono font-bold w-5 h-5 flex items-center justify-center rounded ${isTarget ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-900 text-slate-500'}`}>
+                <span className={`text-xs font-mono font-bold w-5 h-5 flex items-center justify-center rounded bg-slate-900 text-slate-500`}>
                   {fIdx}
                 </span>
                 <span className="text-[10px] text-slate-600 uppercase font-bold tracking-wider">Floor</span>
               </div>
 
-              {/* Waiting Passengers queue indicators */}
               <div className="flex gap-1.5 max-w-[150px] overflow-hidden justify-end">
                 {waitingQueue.map(p => (
                   <span 
@@ -1023,39 +1054,43 @@ function ElevatorShaft({ state, numFloors, accentColor, onFloorClick }) {
         })}
       </div>
 
-      {/* Vertical Track and moving car graphic */}
-      <div className="w-16 flex justify-center border-l border-slate-900 relative">
-        <div 
-          className="absolute w-12 h-10 rounded-lg flex flex-col justify-center items-center border transition-all duration-300 ease-in-out"
-          style={{ 
-            bottom: `${carBottomPercentage + 2}%`,
-            borderColor: accentColor,
-            background: `radial-gradient(ellipse at center, ${accentColor}12 0%, #1e293b 100%)`,
-            boxShadow: `0 0 12px 0 ${accentColor}24`
-          }}
-        >
-          {/* Car details: doors and onboard count */}
-          <div className="flex w-full justify-between px-1.5 absolute top-1 text-[8px] text-slate-400 font-bold uppercase tracking-wide">
-            <span>Car</span>
-            <span style={{ color: accentColor }}>C1</span>
-          </div>
+      {/* Vertical Tracks - one per car */}
+      {carEntries.map(([carId, carState], idx) => {
+        const carFloor = carState.floor || 0;
+        const carBottomPercentage = (carFloor / Math.max(numFloors - 1, 1)) * 82;
 
-          {/* Onboard count */}
-          <span className="text-xs font-mono font-bold text-white mt-2">
-            {state.onboardPassengers.length}
-          </span>
+        return (
+          <div key={carId} className={`w-14 flex justify-center relative ${idx > 0 ? 'border-l border-slate-900/50' : 'border-l border-slate-900'}`}>
+            <div 
+              className="absolute w-11 h-10 rounded-lg flex flex-col justify-center items-center border transition-all duration-300 ease-in-out"
+              style={{ 
+                bottom: `${carBottomPercentage + 2}%`,
+                borderColor: accentColor,
+                background: `radial-gradient(ellipse at center, ${accentColor}12 0%, #1e293b 100%)`,
+                boxShadow: `0 0 12px 0 ${accentColor}24`
+              }}
+            >
+              <div className="flex w-full justify-between px-1 absolute top-0.5 text-[7px] text-slate-400 font-bold uppercase tracking-wide">
+                <span>Car</span>
+                <span style={{ color: accentColor }}>{carId}</span>
+              </div>
 
-          {/* Door state indicators */}
-          <div 
-            className="w-full flex justify-between absolute bottom-0.5 px-2"
-            style={{ animation: state.doorState === 'OPEN' ? 'doorPulse 1.5s infinite' : 'none' }}
-          >
-            <span className={`w-1 h-2 rounded-sm ${state.doorState === 'OPEN' ? 'bg-emerald-400' : 'bg-slate-700'}`}></span>
-            <span className="text-[7px] font-bold text-slate-500 uppercase">{state.doorState}</span>
-            <span className={`w-1 h-2 rounded-sm ${state.doorState === 'OPEN' ? 'bg-emerald-400' : 'bg-slate-700'}`}></span>
+              <span className="text-xs font-mono font-bold text-white mt-2">
+                {(carState.onboardPassengers || []).length}
+              </span>
+
+              <div 
+                className="w-full flex justify-between absolute bottom-0.5 px-1.5"
+                style={{ animation: carState.doorState === 'OPEN' ? 'doorPulse 1.5s infinite' : 'none' }}
+              >
+                <span className={`w-1 h-2 rounded-sm ${carState.doorState === 'OPEN' ? 'bg-emerald-400' : 'bg-slate-700'}`}></span>
+                <span className="text-[6px] font-bold text-slate-500 uppercase">{carState.doorState}</span>
+                <span className={`w-1 h-2 rounded-sm ${carState.doorState === 'OPEN' ? 'bg-emerald-400' : 'bg-slate-700'}`}></span>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        );
+      })}
     </div>
   );
 }

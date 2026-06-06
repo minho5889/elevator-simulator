@@ -96,6 +96,18 @@ class DoorClosed(Event):
         return f"[{self.time:03d} T] DOOR_CLOSED: Car {self.car_id} closed doors at floor {self.floor}"
 
 
+class CarDispatched(Event):
+    """Event indicating a car has been dispatched to a target floor by the group dispatcher."""
+
+    def __init__(self, time: int, car_id: str, target_floor: int) -> None:
+        super().__init__(time)
+        self.car_id = car_id
+        self.target_floor = target_floor
+
+    def __str__(self) -> str:
+        return f"[{self.time:03d} T] CAR_DISPATCHED: Car {self.car_id} dispatched to floor {self.target_floor}"
+
+
 class CarMoved(Event):
     """Event indicating the car traveled from one floor to another."""
 
