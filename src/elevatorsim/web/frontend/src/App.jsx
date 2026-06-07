@@ -4,6 +4,9 @@ import {
   Play, Pause, RotateCcw, ChevronRight, Settings, 
   Key, AlertCircle, HelpCircle, Activity, Award, Navigation, UserCheck, Clock
 } from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer
+} from 'recharts';
 
 const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
@@ -455,7 +458,7 @@ export default function App() {
 
   // Chart Coordinates calculation
   const getChartPoints = (eventsData) => {
-    if (!eventsData || !eventsData.events) return "";
+    if (!eventsData || !eventsData.events) return [];
     const points = [];
     for (let t = 0; t <= maxTicks; t++) {
       const waitTime = getAverageWaitTimeAtTick(eventsData.events, t);
@@ -474,55 +477,14 @@ export default function App() {
     5 // Min Y scaling is 5 ticks
   );
 
-  const renderSVGChart = () => {
-    const width = 600;
-    const height = 120;
-    const padding = 15;
+  // Merge both wait-time curves into a single Recharts-friendly series
+  const chartData = hChartPoints.map((p, i) => ({
+    tick: p.x,
+    look: p.y,
+    gemini: aChartPoints[i] ? aChartPoints[i].y : null,
+  }));
+  const hasAgenticSeries = !!agenticData && !agenticError;
 
-    const scaleX = (val) => padding + (val / maxTicks) * (width - 2 * padding);
-    const scaleY = (val) => height - padding - (val / maxWaitVal) * (height - 2 * padding);
-
-    const generateSVGPath = (points) => {
-      if (points.length === 0) return "";
-      return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(p.x)} ${scaleY(p.y)}`).join(' ');
-    };
-
-    const hPath = generateSVGPath(hChartPoints);
-    const aPath = generateSVGPath(aChartPoints);
-
-    return (
-      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="mt-4">
-        {/* Grid lines */}
-        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--border-color)" />
-        <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="var(--border-color)" />
-        
-        {/* LOOK Heuristic Path */}
-        {hPath && (
-          <path d={hPath} fill="none" stroke="var(--look-cyan)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        )}
-        
-        {/* Gemini Agent Path */}
-        {aPath && (
-          <path d={aPath} fill="none" stroke="var(--agent-violet)" strokeWidth="2" strokeDasharray="3 3" strokeLinecap="round" strokeLinejoin="round" />
-        )}
-
-        {/* Playhead vertical line */}
-        <line 
-          x1={scaleX(currentTick)} 
-          y1={padding} 
-          x2={scaleX(currentTick)} 
-          y2={height - padding} 
-          stroke="#f8fafc" 
-          strokeWidth="1.5" 
-          strokeDasharray="2 2"
-        />
-        <circle cx={scaleX(currentTick)} cy={scaleY(getAverageWaitTimeAtTick(heuristicData?.events || [], currentTick))} r="4" fill="var(--look-cyan)" />
-        {agenticData && (
-          <circle cx={scaleX(currentTick)} cy={scaleY(getAverageWaitTimeAtTick(agenticData?.events || [], currentTick))} r="4" fill="var(--agent-violet)" />
-        )}
-      </svg>
-    );
-  };
 
   return (
     <div className="container slide-up">
@@ -546,7 +508,7 @@ export default function App() {
       </header>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div role="main" className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Left Column - Configuration (3 cols) */}
         <div className="lg:col-span-3 flex flex-col gap-6">
@@ -585,6 +547,7 @@ export default function App() {
               <select 
                 value={profile} 
                 onChange={(e) => setProfile(e.target.value)}
+                aria-label="Traffic profile"
                 className="w-full bg-slate-900 border border-[var(--border-color)] rounded-lg px-2.5 py-1.5 text-sm outline-none"
               >
                 <option value="UNIFORM">UNIFORM</option>
@@ -599,7 +562,7 @@ export default function App() {
                 <span className="font-semibold">{arrivalRate}</span>
               </label>
               <input 
-                type="range" min="0.1" max="1.0" step="0.05"
+                type="range" min="0.1" max="1.0" step="0.05" aria-label="Arrival probability"
                 value={arrivalRate} onChange={(e) => setArrivalRate(Number(e.target.value))}
                 className="w-full accent-cyan-500"
               />
@@ -611,7 +574,7 @@ export default function App() {
                 <span className="font-semibold">{floors}</span>
               </label>
               <input 
-                type="range" min="5" max="10" step="1"
+                type="range" min="5" max="10" step="1" aria-label="Number of floors"
                 value={floors} onChange={(e) => setFloors(Number(e.target.value))}
                 className="w-full accent-cyan-500"
               />
@@ -623,7 +586,7 @@ export default function App() {
                 <span className="font-semibold">{numCars}</span>
               </label>
               <input 
-                type="range" min="1" max="6" step="1"
+                type="range" min="1" max="6" step="1" aria-label="Number of elevator cars"
                 value={numCars} onChange={(e) => setNumCars(Number(e.target.value))}
                 className="w-full accent-cyan-500"
               />
@@ -635,7 +598,7 @@ export default function App() {
                 <span className="font-semibold">{maxTicks}</span>
               </label>
               <input 
-                type="range" min="30" max="100" step="10"
+                type="range" min="30" max="100" step="10" aria-label="Maximum ticks"
                 value={maxTicks} onChange={(e) => setMaxTicks(Number(e.target.value))}
                 className="w-full accent-cyan-500"
               />
@@ -644,7 +607,7 @@ export default function App() {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-[var(--text-secondary)]">RNG Seed</label>
               <input 
-                type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value))}
+                type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value))} aria-label="RNG seed"
                 className="w-full bg-slate-900 border border-[var(--border-color)] rounded-lg px-2.5 py-1.5 text-sm outline-none"
               />
             </div>
@@ -673,6 +636,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setIsPlaying(!isPlaying)}
+                aria-label={isPlaying ? 'Pause playback' : 'Play playback'}
                 className="p-2 rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition"
               >
                 {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
@@ -723,7 +687,7 @@ export default function App() {
             <div className="flex-1 min-w-[200px] flex items-center gap-3">
               <span className="text-xs font-semibold font-mono text-cyan-400 w-8">{String(currentTick).padStart(3, '0')}</span>
               <input 
-                type="range" min="0" max={maxTicks}
+                type="range" min="0" max={maxTicks} aria-label="Timeline scrubber"
                 value={currentTick} onChange={(e) => { setCurrentTick(Number(e.target.value)); setIsPlaying(false); }}
                 disabled={isInteractiveMode}
                 className="flex-1 accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer disabled:opacity-50"
@@ -737,6 +701,7 @@ export default function App() {
               <select 
                 value={playbackSpeed} 
                 onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
+                aria-label="Playback speed"
                 className="bg-slate-900 border border-[var(--border-color)] rounded-lg px-2 py-1 text-xs outline-none"
               >
                 <option value={1000}>0.5x</option>
@@ -893,7 +858,12 @@ export default function App() {
                   </span>
                 </div>
               </div>
-              {renderSVGChart()}
+              <WaitTimeChart
+                data={chartData}
+                currentTick={currentTick}
+                maxWait={maxWaitVal}
+                hasAgentic={hasAgenticSeries}
+              />
             </div>
           </div>
 
@@ -1099,7 +1069,7 @@ function ElevatorShaft({ state, numFloors, numCars = 1, accentColor, onFloorClic
 function ConsoleTerminal({ logRef, logs, title }) {
   return (
     <div className="mt-4 bg-slate-950 border border-slate-900 rounded-lg p-3 flex flex-col gap-1.5">
-      <div className="text-[10px] text-slate-500 uppercase tracking-widest font-bold border-b border-slate-900 pb-1.5 flex justify-between items-center">
+      <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold border-b border-slate-900 pb-1.5 flex justify-between items-center">
         <span>{title}</span>
         <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full pulse-glow"></span>
       </div>
@@ -1108,7 +1078,7 @@ function ConsoleTerminal({ logRef, logs, title }) {
         className="h-28 overflow-y-auto text-[10px] font-mono text-slate-400 flex flex-col gap-1.5 scroll-smooth"
       >
         {logs.length === 0 ? (
-          <span className="text-slate-700 italic">No events occurred yet. Play or step to start.</span>
+          <span className="text-slate-400 italic">No events occurred yet. Play or step to start.</span>
         ) : (
           logs.map((log, idx) => {
             // Highlight agent reasoning logs or specific tags
@@ -1163,5 +1133,74 @@ function MetricComparisonCard({ title, hVal, aVal, unit, icon }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// Chart accent colors (mirror the --look-cyan / --agent-violet CSS variables)
+const LOOK_COLOR = '#06b6d4';
+const AGENT_COLOR = '#a78bfa';
+
+// Dark, glass-styled tooltip for the wait-time comparison chart
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="bg-slate-900/95 border border-slate-700 rounded-lg px-3 py-2 shadow-xl backdrop-blur-sm">
+      <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1.5">Tick {label}</div>
+      <div className="flex flex-col gap-1">
+        {payload.map((entry) => (
+          <div key={entry.dataKey} className="flex items-center gap-2 text-[11px] font-mono" style={{ color: entry.color }}>
+            <span className="w-2.5 h-0.5 inline-block rounded" style={{ background: entry.color }} />
+            <span className="font-semibold">{entry.dataKey === 'look' ? 'LOOK' : 'Gemini'}</span>
+            <span className="ml-auto tabular-nums">{entry.value ?? '—'} ticks</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Recharts average wait-time comparison chart (replaces the hand-rolled SVG).
+// Animation is disabled so the line tracks the real-time playback without re-tweening each tick.
+function WaitTimeChart({ data, currentTick, maxWait, hasAgentic }) {
+  const axisTick = { fill: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' };
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <AreaChart data={data} margin={{ top: 10, right: 10, left: -16, bottom: 0 }}>
+        <defs>
+          <linearGradient id="lookFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={LOOK_COLOR} stopOpacity={0.35} />
+            <stop offset="100%" stopColor={LOOK_COLOR} stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="agentFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={AGENT_COLOR} stopOpacity={0.3} />
+            <stop offset="100%" stopColor={AGENT_COLOR} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+        <XAxis
+          dataKey="tick" type="number" domain={[0, 'dataMax']}
+          tick={axisTick} tickLine={false} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+          tickMargin={6}
+        />
+        <YAxis
+          width={42} domain={[0, Math.ceil(maxWait)]} allowDecimals={false}
+          tick={axisTick} tickLine={false} axisLine={false}
+        />
+        <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.18)', strokeDasharray: '3 3' }} />
+        <ReferenceLine x={currentTick} stroke="#e2e8f0" strokeOpacity={0.55} strokeDasharray="2 3" />
+        <Area
+          type="monotone" dataKey="look" name="LOOK Heuristic"
+          stroke={LOOK_COLOR} strokeWidth={2} fill="url(#lookFill)"
+          dot={false} activeDot={{ r: 4, strokeWidth: 0 }} isAnimationActive={false}
+        />
+        {hasAgentic && (
+          <Area
+            type="monotone" dataKey="gemini" name="Gemini Agent"
+            stroke={AGENT_COLOR} strokeWidth={2} strokeDasharray="4 3" fill="url(#agentFill)"
+            dot={false} activeDot={{ r: 4, strokeWidth: 0 }} connectNulls isAnimationActive={false}
+          />
+        )}
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
