@@ -1,13 +1,18 @@
 # src/elevatorsim/core/simulation.py
-"""SimPy-powered discrete-event simulation engine supporting multi-car elevator banks.
+"""Fixed-tick simulation engine supporting multi-car elevator banks.
 
-Tier 2 upgrade: migrated from fixed-tick stepping to SimPy-based event scheduling.
-Each car runs as an independent SimPy process. The public ``step()`` API advances the
-SimPy environment by one time unit, maintaining full backward compatibility with the
-WebSocket tick-based protocol and single-car Tier 0/1 presets.
+Each ``step()`` call advances the clock by exactly one tick and steps every car in
+the bank once (1 floor per tick, doors open 2 ticks). This tick-based contract is what
+the WebSocket streaming protocol and the recorded preset caches depend on, so it is
+preserved across all tiers. Tier 0/1 single-car runs are an exact special case
+(``num_cars == 1``).
+
+Note: a SimPy/discrete-event engine was evaluated and deliberately rejected — see
+``docs/decision-log.md`` Decision 2. The event-jumping model conflicts with per-tick
+visualization, and variable car speeds (Tier 3) are expressible as fractional
+position accumulation within this loop.
 """
 
-import simpy
 from typing import List, Callable, Dict, Any, Optional
 from elevatorsim.core.building import Building
 from elevatorsim.core.car import Car
@@ -22,10 +27,10 @@ from elevatorsim.config import RNG
 
 
 class Simulation:
-    """SimPy-backed elevator simulation coordinator supporting 1..N cars.
+    """Fixed-tick elevator simulation coordinator supporting 1..N cars.
 
     Backward-compatible: when ``num_cars`` is omitted or equals 1 the behaviour
-    is identical to the Tier 0/1 fixed-tick engine.
+    is identical to the Tier 0/1 single-car engine.
     """
 
     def __init__(

@@ -64,7 +64,7 @@ The simulation engine runs a **per-car fixed-tick loop** where each `step()` cal
 * Each car moves exactly 1 floor per tick (independent of other cars).
 * Doors stay open for exactly 2 ticks per car.
 * All cars are stepped sequentially within a single `step()` call.
-* **SimPy import:** `simpy` is imported and available for future event-driven scheduling in Tier 3 (variable travel speeds, express elevators). The current Tier 2 engine uses SimPy's namespace but preserves the tick-based stepping API for WebSocket compatibility.
+* **No discrete-event framework:** the engine is plain fixed-tick Python with no SimPy/discrete-event dependency. This keeps the loop transparent and, crucially, aligned with the per-tick WebSocket streaming protocol and recorded preset caches. Variable travel speeds (Tier 3) are planned as fractional position accumulation within this same loop rather than an event-driven rewrite — see `docs/decision-log.md` Decision 2.
 * **Group dispatch:** After all cars are stepped, the dispatcher is queried once per tick. `GroupDispatcher.dispatch_group()` returns assignments for all idle cars simultaneously.
 
 ### Stochastic Traffic Generation (Tier 1)
@@ -122,8 +122,8 @@ The project is structured to easily scale across tiers:
 
 * **Tier 0 (Walking Skeleton) [Completed]:** 1 car, 5 floors, scripted passengers, LOOK vs. Agentic Dispatcher.
 * **Tier 1 (Stochastic Traffic) [Completed]:** Introduce stochastic passenger spawns using the seeded `RNG` and custom traffic profiles (`UNIFORM`, `UP_PEAK`, `DOWN_PEAK`).
-* **Tier 2 (Multi-Car Bank) [Completed]:** Upgraded to an elevator bank (1-6 configurable cars) with `GroupDispatcher` protocol and nearest-idle-car LOOK group scheduling. SimPy imported for future event-driven scheduling. Frontend renders multi-shaft car tracks. Full backward compatibility with single-car mode and preset caches.
-* **Tier 3 (Skyscraper) [Planned]:** Swarm and Workflow orchestration across hierarchical building controllers, exposing MCP servers for config and performance metrics.
+* **Tier 2 (Multi-Car Bank) [Completed]:** Upgraded to an elevator bank (1-6 configurable cars) with `GroupDispatcher` protocol and nearest-idle-car LOOK group scheduling. Both the heuristic and agentic dispatchers implement group dispatch. Frontend renders multi-shaft car tracks. Full backward compatibility with single-car mode and preset caches.
+* **Tier 3 (Skyscraper) [Planned]:** Swarm and Workflow orchestration across hierarchical building controllers, exposing MCP servers for config and performance metrics. Variable car speeds modeled via fractional position accumulation in the existing tick loop (no SimPy).
 
 ---
 

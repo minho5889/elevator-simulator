@@ -55,6 +55,40 @@ def get_elevator_state() -> Dict[str, Any]:
 
 
 @tool
+def get_all_cars_state() -> Dict[str, Any]:
+    """
+    Get the physical state of every elevator car in the bank.
+
+    Returns:
+        A dictionary with ``num_floors`` (top floor index is ``num_floors - 1``)
+        and ``cars``: a list of per-car states, each containing car_id,
+        current_floor, target_floor, direction (1: UP, -1: DOWN, 0: IDLE),
+        door_state, is_idle (closed doors and no target), and onboard passengers.
+    """
+    if _active_simulation is None:
+        return {"error": "No active simulation context."}
+
+    cars_info = []
+    for car in _active_simulation.cars:
+        cars_info.append({
+            "car_id": car.car_id,
+            "current_floor": car.current_floor,
+            "target_floor": car.target_floor,
+            "direction": car.direction,
+            "door_state": car.door_state,
+            "is_idle": car.door_state == "CLOSED" and car.target_floor is None,
+            "passenger_count": car.passenger_count,
+            "capacity": car.capacity,
+            "onboard_destinations": sorted({p.target_floor for p in car.passengers}),
+        })
+
+    return {
+        "num_floors": _active_simulation.building.num_floors,
+        "cars": cars_info,
+    }
+
+
+@tool
 def get_floor_calls() -> Dict[str, List[Dict[str, Any]]]:
     """
     Get lists of passengers waiting on each floor (hall calls).

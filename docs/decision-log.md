@@ -16,15 +16,16 @@ This log documents key architectural decisions made during the design and develo
 
 ---
 
-## Decision 2: Fixed-Tick Event Loop for Tier 0
+## Decision 2: Fixed-Tick Event Loop (All Tiers)
 
 * **Context:** Choosing the time-stepping mechanism for the simulation engine.
-* **Proposed Option:** Linear time-stepped loop (`current_time += 1`).
+* **Proposed Option:** Linear time-stepped loop (`current_time += 1`), stepping every car once per tick.
 * **Alternative Rejected:** Discrete-event simulation using `SimPy`.
 * **Rationale for Choice:**
   * A simple fixed-tick loop is extremely transparent, making logs easy to inspect and debug.
-  * `SimPy` adds unnecessary async conceptual load for a "walking skeleton" (Tier 0).
-  * *Upgrade path:* We defer SimPy to Tier 2 when multi-car coordination requires event-driven scheduling.
+  * It aligns naturally with the per-tick WebSocket streaming protocol and the recorded preset caches; a discrete-event engine that *jumps* to the next event time would skip the intermediate frames the frontend animates.
+  * Multi-car coordination (Tier 2) was implemented by simply iterating over all cars within each tick — no event scheduling required.
+  * *Tier 3 note:* variable car speeds / express elevators are planned as **fractional position accumulation** inside this same loop (e.g. a car advances 0.5 floor/tick), which stays deterministic and cache-compatible. We therefore do **not** plan to adopt SimPy in any tier; the dependency was removed.
 
 ---
 
@@ -115,6 +116,6 @@ This log documents key architectural decisions made during the design and develo
 * **Rationale for Choice:**
   * The per-car tick loop preserves full backward compatibility with single-car mode, existing preset caches, and the WebSocket tick protocol.
   * `GroupDispatcher` enables true group scheduling (nearest-idle-car) without breaking the `Dispatcher` interface.
-  * Full SimPy process architecture was deferred to Tier 3 where variable car speeds and non-integer timing would justify the added complexity.
+  * A full SimPy process-per-car architecture was rejected (see Decision 2): non-integer timing is better handled by fractional position accumulation in the tick loop, and event-jumping would conflict with per-tick visualization.
   * The `GroupHeuristicDispatcher` implements both protocols, making it a drop-in replacement for either mode.
 
