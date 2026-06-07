@@ -119,3 +119,16 @@ This log documents key architectural decisions made during the design and develo
   * A full SimPy process-per-car architecture was rejected (see Decision 2): non-integer timing is better handled by fractional position accumulation in the tick loop, and event-jumping would conflict with per-tick visualization.
   * The `GroupHeuristicDispatcher` implements both protocols, making it a drop-in replacement for either mode.
 
+---
+
+## Decision 11: FastMCP Server Integration (Tier 3)
+
+* **Context:** Exposing simulator control, event emissions, and metrics programmatically to external tooling, agents, or client applications.
+* **Proposed Option:** Expose a standard Model Context Protocol (MCP) server using the Python `FastMCP` framework (`src/elevatorsim/mcp/server.py`). Expose tools to configure simulations (`init_simulation`), step time (`step_simulation`), query state (`get_status`), query metrics (`get_metrics`), and manually spawn passengers (`spawn_passenger`).
+* **Alternative Rejected:** Writing custom REST/JSON-RPC protocols or custom tool-definition templates.
+* **Rationale for Choice:**
+  - `FastMCP` standardizes tool definitions and communications out-of-the-box using stdio.
+  - LLM agents (like Gemini or Claude) can natively connect to this server as an MCP client and execute simulation steps or query benchmarks.
+  - Aligns with the Tier 3 roadmap of building swarm building controllers programmatically.
+
+

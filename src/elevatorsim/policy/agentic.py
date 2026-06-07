@@ -53,7 +53,6 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
         return (
             os.getenv("MOCK_GEMINI") == "true"
             or api_key == "mock"
-            or not api_key
         )
 
     def _ensure_model(self) -> None:
@@ -69,14 +68,9 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
         if self.model is None:
             self.model = get_gemini_model()
 
-    @staticmethod
-    def _rate_limit(simulation: Any, note: str) -> None:
+    def _rate_limit(self, simulation: Any, note: str) -> None:
         """Pause to stay under Google AI Studio free-tier rate limits."""
-        # Bypassed in mock mode to allow fast tests
-        import os
-        api_key = get_gemini_api_key()
-        is_mock = os.getenv("MOCK_GEMINI") == "true" or api_key == "mock" or not api_key
-        if is_mock:
+        if self._is_mock_mode():
             return
         if getattr(simulation, "verbose", False):
             print(f"[RATE LIMITING] Waiting {RATE_LIMIT_SECONDS}s {note}...")

@@ -464,6 +464,7 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "google-genai" },
+    { name = "mcp" },
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "strands-agents" },
@@ -482,6 +483,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.136.3" },
     { name = "google-genai", specifier = ">=2.0.0" },
+    { name = "mcp", specifier = ">=1.2.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "strands-agents", specifier = "==1.42.0" },

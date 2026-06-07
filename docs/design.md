@@ -123,7 +123,7 @@ The project is structured to easily scale across tiers:
 * **Tier 0 (Walking Skeleton) [Completed]:** 1 car, 5 floors, scripted passengers, LOOK vs. Agentic Dispatcher.
 * **Tier 1 (Stochastic Traffic) [Completed]:** Introduce stochastic passenger spawns using the seeded `RNG` and custom traffic profiles (`UNIFORM`, `UP_PEAK`, `DOWN_PEAK`).
 * **Tier 2 (Multi-Car Bank) [Completed]:** Upgraded to an elevator bank (1-6 configurable cars) with `GroupDispatcher` protocol and nearest-idle-car LOOK group scheduling. Both the heuristic and agentic dispatchers implement group dispatch. Frontend renders multi-shaft car tracks. Full backward compatibility with single-car mode and preset caches.
-* **Tier 3 (Skyscraper) [Planned]:** Swarm and Workflow orchestration across hierarchical building controllers, exposing MCP servers for config and performance metrics. Variable car speeds modeled via fractional position accumulation in the existing tick loop (no SimPy).
+* **Tier 3 (Skyscraper) [Partially Completed]:** Expose a standard FastMCP server (`src/elevatorsim/mcp/server.py`) for remote configuration, time-stepping, status query, passenger spawning, and performance telemetry comparison. Planned: Swarm and Workflow orchestration across hierarchical building controllers; variable car speeds modeled via fractional position accumulation in the existing tick loop (no SimPy).
 
 ---
 
