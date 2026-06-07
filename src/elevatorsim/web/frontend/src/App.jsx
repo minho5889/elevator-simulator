@@ -4,138 +4,16 @@ import {
   Play, Pause, RotateCcw, ChevronRight, Settings, 
   Key, AlertCircle, HelpCircle, Activity, Award, Navigation, UserCheck, Clock
 } from 'lucide-react';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer
-} from 'recharts';
+import { reconstructState, getAverageWaitTimeAtTick } from './utils/simulationHelper';
+import ElevatorShaft from './components/ElevatorShaft';
+import ConsoleTerminal from './components/ConsoleTerminal';
+import MetricComparisonCard from './components/MetricComparisonCard';
+import WaitTimeChart from './components/WaitTimeChart';
+import SettingsModal from './components/SettingsModal';
+import PassengerSpawnModal from './components/PassengerSpawnModal';
 
 const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
-// Reconstruct simulation state at a specific tick (supports multi-car)
-function reconstructState(events, tick, numCars = 1) {
-  const state = {
-    cars: {},  // keyed by car_id (e.g. "C1", "C2")
-    floorQueues: {},
-    logs: [],
-    rawEvents: []
-  };
-
-  // Initialize cars
-  for (let c = 1; c <= numCars; c++) {
-    state.cars[`C${c}`] = {
-      floor: 0,
-      targetFloor: null,
-      doorState: "CLOSED",
-      onboardPassengers: []
-    };
-  }
-
-  // Initialize floor queues
-  for (let i = 0; i < 10; i++) {
-    state.floorQueues[i] = [];
-  }
-
-  if (!events || events.length === 0) return state;
-
-  // Gather passenger targets on spawn
-  const passengerTargets = {};
-  for (const ev of events) {
-    if (ev.event_type === "PassengerSpawned") {
-      passengerTargets[ev.passenger_id] = ev.target;
-    }
-  }
-
-  // Process events up to current tick
-  for (const ev of events) {
-    if (ev.time > tick) break;
-
-    state.rawEvents.push(ev);
-    state.logs.push(ev.message);
-
-    // Resolve which car this event applies to; fall back to "C1" for legacy single-car events
-    const carId = ev.car_id || 'C1';
-
-    switch (ev.event_type) {
-      case "PassengerSpawned": {
-        const { passenger_id, source, target } = ev;
-        state.floorQueues[source].push({ id: passenger_id, target });
-        break;
-      }
-      case "PassengerBoarded": {
-        const { passenger_id, floor } = ev;
-        state.floorQueues[floor] = state.floorQueues[floor].filter(p => p.id !== passenger_id);
-        if (state.cars[carId]) {
-          state.cars[carId].onboardPassengers.push({ id: passenger_id, target: passengerTargets[passenger_id] || 0 });
-        }
-        break;
-      }
-      case "PassengerDeboarded": {
-        const { passenger_id } = ev;
-        if (state.cars[carId]) {
-          state.cars[carId].onboardPassengers = state.cars[carId].onboardPassengers.filter(p => p.id !== passenger_id);
-        }
-        break;
-      }
-      case "CarMoved": {
-        if (state.cars[carId]) {
-          state.cars[carId].floor = ev.to_floor;
-        }
-        break;
-      }
-      case "CarArrived": {
-        if (state.cars[carId]) {
-          state.cars[carId].floor = ev.floor;
-        }
-        break;
-      }
-      case "DoorOpened": {
-        if (state.cars[carId]) {
-          state.cars[carId].doorState = "OPEN";
-        }
-        break;
-      }
-      case "DoorClosed": {
-        if (state.cars[carId]) {
-          state.cars[carId].doorState = "CLOSED";
-        }
-        break;
-      }
-      default:
-        break;
-    }
-  }
-
-  return state;
-}
-
-// Calculate the average wait time of all active and completed passengers at tick t
-function getAverageWaitTimeAtTick(events, tick) {
-  const spawnTimes = {};
-  const boardTimes = {};
-
-  for (const ev of events) {
-    if (ev.time > tick) break;
-    if (ev.event_type === "PassengerSpawned") {
-      spawnTimes[ev.passenger_id] = ev.time;
-    } else if (ev.event_type === "PassengerBoarded") {
-      boardTimes[ev.passenger_id] = ev.time;
-    }
-  }
-
-  const passengers = Object.keys(spawnTimes);
-  if (passengers.length === 0) return 0;
-
-  let totalWait = 0;
-  for (const pid of passengers) {
-    const spawn = spawnTimes[pid];
-    const board = boardTimes[pid];
-    if (board !== undefined) {
-      totalWait += (board - spawn);
-    } else {
-      totalWait += (tick - spawn);
-    }
-  }
-  return parseFloat((totalWait / passengers.length).toFixed(1));
-}
 
 export default function App() {
   // App Configurations & Key
@@ -489,18 +367,18 @@ export default function App() {
   return (
     <div className="container slide-up">
       {/* Header */}
-      <header className="flex justify-between items-center mb-6 pb-4 border-b border-[var(--border-color)]">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-[var(--border-color)]">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)] m-0 flex items-center gap-2">
-            <Activity className="text-cyan-500 w-8 h-8" />
-            Elevator Simulator
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] m-0 flex flex-wrap items-center gap-2">
+            <Activity className="text-cyan-500 w-7 h-7 sm:w-8 sm:h-8" />
+            <span>Elevator Simulator</span>
             <span className="text-xs bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded-full font-normal">A/B Testing Dashboard</span>
           </h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">Comparing LOOK Heuristic vs. Gemini-3.5-Flash Strands Agent</p>
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">Comparing LOOK Heuristic vs. Gemini-3.5-Flash Strands Agent</p>
         </div>
         <button 
           onClick={() => setShowSettingsModal(true)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-slate-900 text-slate-300 hover:text-white hover:border-slate-600 transition"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-slate-900 text-slate-300 hover:text-white hover:border-slate-600 transition self-stretch sm:self-auto justify-center"
         >
           <Settings className="w-4 h-4" />
           Settings
@@ -873,93 +751,24 @@ export default function App() {
 
       {/* Settings Panel Modal */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="glass-panel w-full max-w-md p-6 bg-slate-900 border border-slate-700/60 rounded-xl relative">
-            <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-              <Settings className="text-cyan-400 w-5 h-5" />
-              Settings & API Keys
-            </h2>
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-4">
-              To configure custom elevator simulations, you can paste your Google AI Studio API key below. 
-              The key is saved <strong>locally</strong> in your browser storage and never sent anywhere except the local simulator server.
-            </p>
-
-            <div className="flex flex-col gap-2 mb-4">
-              <label className="text-xs text-slate-300 font-semibold flex items-center gap-1">
-                <Key className="w-3.5 h-3.5" />
-                GEMINI_API_KEY
-              </label>
-              <input 
-                type="password" 
-                placeholder="AIzaSy..."
-                value={userApiKey} 
-                onChange={(e) => setUserApiKey(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none text-white placeholder-slate-600 focus:border-cyan-500"
-              />
-            </div>
-
-            {keyCheckResult && (
-              <div className={`p-3 rounded-lg text-xs mb-4 ${keyCheckResult.success ? 'bg-emerald-950/30 border border-emerald-500/30 text-emerald-400' : 'bg-red-950/30 border border-red-500/30 text-red-400'}`}>
-                {keyCheckResult.message}
-              </div>
-            )}
-
-            <div className="flex gap-3 justify-end mt-6">
-              <button 
-                onClick={handleTestKey}
-                disabled={keyChecking}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-semibold rounded-lg text-xs transition disabled:opacity-50"
-              >
-                {keyChecking ? 'Testing...' : 'Test Connection'}
-              </button>
-              <button 
-                onClick={handleSaveSettings}
-                className="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs transition"
-              >
-                Save & Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <SettingsModal
+          userApiKey={userApiKey}
+          setUserApiKey={setUserApiKey}
+          keyChecking={keyChecking}
+          keyCheckResult={keyCheckResult}
+          handleTestKey={handleTestKey}
+          handleSaveSettings={handleSaveSettings}
+        />
       )}
 
       {/* Passenger Spawn Destination Selector Modal */}
       {activeSpawnFloor !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-sm p-6 bg-slate-900 border border-slate-700/60 rounded-xl relative">
-            <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-              <UserCheck className="text-cyan-400 w-5 h-5" />
-              Spawn Passenger
-            </h3>
-            <p className="text-xs text-slate-400 mb-4">
-              Select destination floor for passenger starting at <strong>Floor {activeSpawnFloor}</strong>.
-            </p>
-            
-            <div className="grid grid-cols-5 gap-2.5 my-4">
-              {Array.from({ length: floors }, (_, idx) => {
-                if (idx === activeSpawnFloor) return null;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => spawnPassenger(activeSpawnFloor, idx)}
-                    className="h-10 rounded-lg bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 font-mono font-bold text-sm text-slate-300 border border-slate-700 hover:border-transparent transition"
-                  >
-                    {idx}
-                  </button>
-                );
-              })}
-            </div>
-            
-            <div className="flex justify-end mt-4">
-              <button
-                onClick={() => setActiveSpawnFloor(null)}
-                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <PassengerSpawnModal
+          activeSpawnFloor={activeSpawnFloor}
+          floors={floors}
+          spawnPassenger={spawnPassenger}
+          onClose={() => setActiveSpawnFloor(null)}
+        />
       )}
 
       {/* Footer */}
@@ -971,236 +780,4 @@ export default function App() {
   );
 }
 
-// Elevator Shaft Component representing floors, multi-car vertical tracks, and queue indicators
-function ElevatorShaft({ state, numFloors, numCars = 1, accentColor, onFloorClick }) {
-  const floorIndices = Array.from({ length: numFloors }, (_, i) => numFloors - 1 - i);
-  const carIds = Object.keys(state.cars || {});
 
-  // If no multi-car data, fall back to legacy single-car shape
-  const carsData = carIds.length > 0 ? state.cars : {
-    C1: {
-      floor: state.carFloor || 0,
-      targetFloor: state.targetFloor,
-      doorState: state.doorState || "CLOSED",
-      onboardPassengers: state.onboardPassengers || []
-    }
-  };
-
-  const carEntries = Object.entries(carsData);
-
-  return (
-    <div className="flex-1 flex bg-slate-950/60 border border-[var(--border-color)] rounded-lg p-3 min-h-[360px] relative">
-      {/* Floor boundaries and queue details */}
-      <div className="flex-1 flex flex-col justify-between">
-        {floorIndices.map(fIdx => {
-          const waitingQueue = state.floorQueues[fIdx] || [];
-
-          return (
-            <div 
-              key={fIdx} 
-              onClick={() => onFloorClick && onFloorClick(fIdx)}
-              className={`flex justify-between items-center py-2 h-10 border-b border-dashed border-slate-900 last:border-b-0 px-2 rounded transition-colors ${onFloorClick ? 'cursor-pointer hover:bg-slate-900/40' : ''}`}
-            >
-              <div className="flex items-center gap-1">
-                <span className={`text-xs font-mono font-bold w-5 h-5 flex items-center justify-center rounded bg-slate-900 text-slate-500`}>
-                  {fIdx}
-                </span>
-                <span className="text-[10px] text-slate-600 uppercase font-bold tracking-wider">Floor</span>
-              </div>
-
-              <div className="flex gap-1.5 max-w-[150px] overflow-hidden justify-end">
-                {waitingQueue.map(p => (
-                  <span 
-                    key={p.id} 
-                    className="text-[9px] font-mono px-1.5 py-0.5 rounded font-medium bg-slate-900 border border-slate-800 text-slate-400"
-                    title={`Passenger ${p.id} heading to floor ${p.target}`}
-                  >
-                    {p.id}→{p.target}
-                  </span>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Vertical Tracks - one per car */}
-      {carEntries.map(([carId, carState], idx) => {
-        const carFloor = carState.floor || 0;
-        const carBottomPercentage = (carFloor / Math.max(numFloors - 1, 1)) * 82;
-
-        return (
-          <div key={carId} className={`w-14 flex justify-center relative ${idx > 0 ? 'border-l border-slate-900/50' : 'border-l border-slate-900'}`}>
-            <div 
-              className="absolute w-11 h-10 rounded-lg flex flex-col justify-center items-center border transition-all duration-300 ease-in-out"
-              style={{ 
-                bottom: `${carBottomPercentage + 2}%`,
-                borderColor: accentColor,
-                background: `radial-gradient(ellipse at center, ${accentColor}12 0%, #1e293b 100%)`,
-                boxShadow: `0 0 12px 0 ${accentColor}24`
-              }}
-            >
-              <div className="flex w-full justify-between px-1 absolute top-0.5 text-[7px] text-slate-400 font-bold uppercase tracking-wide">
-                <span>Car</span>
-                <span style={{ color: accentColor }}>{carId}</span>
-              </div>
-
-              <span className="text-xs font-mono font-bold text-white mt-2">
-                {(carState.onboardPassengers || []).length}
-              </span>
-
-              <div 
-                className="w-full flex justify-between absolute bottom-0.5 px-1.5"
-                style={{ animation: carState.doorState === 'OPEN' ? 'doorPulse 1.5s infinite' : 'none' }}
-              >
-                <span className={`w-1 h-2 rounded-sm ${carState.doorState === 'OPEN' ? 'bg-emerald-400' : 'bg-slate-700'}`}></span>
-                <span className="text-[6px] font-bold text-slate-500 uppercase">{carState.doorState}</span>
-                <span className={`w-1 h-2 rounded-sm ${carState.doorState === 'OPEN' ? 'bg-emerald-400' : 'bg-slate-700'}`}></span>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// Scrolling event log terminal
-function ConsoleTerminal({ logRef, logs, title }) {
-  return (
-    <div className="mt-4 bg-slate-950 border border-slate-900 rounded-lg p-3 flex flex-col gap-1.5">
-      <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold border-b border-slate-900 pb-1.5 flex justify-between items-center">
-        <span>{title}</span>
-        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full pulse-glow"></span>
-      </div>
-      <div 
-        ref={logRef}
-        className="h-28 overflow-y-auto text-[10px] font-mono text-slate-400 flex flex-col gap-1.5 scroll-smooth"
-      >
-        {logs.length === 0 ? (
-          <span className="text-slate-400 italic">No events occurred yet. Play or step to start.</span>
-        ) : (
-          logs.map((log, idx) => {
-            // Highlight agent reasoning logs or specific tags
-            const isAgentDecision = log.includes('Decided by Gemini');
-            const isBoarded = log.includes('BOARDED');
-            const isDeboarded = log.includes('DEBOARDED');
-            
-            let colorClass = 'text-slate-400';
-            if (isAgentDecision) colorClass = 'text-purple-400 font-semibold';
-            else if (isBoarded) colorClass = 'text-cyan-400';
-            else if (isDeboarded) colorClass = 'text-emerald-400';
-
-            return (
-              <div key={idx} className={`${colorClass} leading-relaxed`}>
-                {log}
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Numerical Telemetry comparisons cards
-function MetricComparisonCard({ title, hVal, aVal, unit, icon }) {
-  const isBetter = aVal !== null && aVal < hVal; // A lower wait time or moves is usually better
-  
-  return (
-    <div className="bg-slate-950/40 border border-[var(--border-color)] rounded-xl p-3 flex flex-col gap-1.5">
-      <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] font-medium">
-        {icon}
-        {title}
-      </div>
-      <div className="flex items-baseline justify-between mt-1">
-        {/* LOOK Heuristic value */}
-        <div className="flex flex-col">
-          <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">LOOK</span>
-          <span className="text-sm font-mono font-bold text-slate-300">{hVal} <span className="text-[10px] font-normal text-slate-500">{unit}</span></span>
-        </div>
-
-        {/* Gemini Agent value */}
-        <div className="flex flex-col text-right">
-          <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">Gemini</span>
-          {aVal === null ? (
-            <span className="text-xs text-slate-600 font-semibold">N/A</span>
-          ) : (
-            <span className={`text-sm font-mono font-bold ${isBetter ? 'text-emerald-400' : aVal > hVal ? 'text-slate-400' : 'text-slate-300'}`}>
-              {aVal} <span className="text-[10px] font-normal text-slate-500">{unit}</span>
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Chart accent colors (mirror the --look-cyan / --agent-violet CSS variables)
-const LOOK_COLOR = '#06b6d4';
-const AGENT_COLOR = '#a78bfa';
-
-// Dark, glass-styled tooltip for the wait-time comparison chart
-function ChartTooltip({ active, payload, label }) {
-  if (!active || !payload || !payload.length) return null;
-  return (
-    <div className="bg-slate-900/95 border border-slate-700 rounded-lg px-3 py-2 shadow-xl backdrop-blur-sm">
-      <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1.5">Tick {label}</div>
-      <div className="flex flex-col gap-1">
-        {payload.map((entry) => (
-          <div key={entry.dataKey} className="flex items-center gap-2 text-[11px] font-mono" style={{ color: entry.color }}>
-            <span className="w-2.5 h-0.5 inline-block rounded" style={{ background: entry.color }} />
-            <span className="font-semibold">{entry.dataKey === 'look' ? 'LOOK' : 'Gemini'}</span>
-            <span className="ml-auto tabular-nums">{entry.value ?? '—'} ticks</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Recharts average wait-time comparison chart (replaces the hand-rolled SVG).
-// Animation is disabled so the line tracks the real-time playback without re-tweening each tick.
-function WaitTimeChart({ data, currentTick, maxWait, hasAgentic }) {
-  const axisTick = { fill: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' };
-  return (
-    <ResponsiveContainer width="100%" height={200}>
-      <AreaChart data={data} margin={{ top: 10, right: 10, left: -16, bottom: 0 }}>
-        <defs>
-          <linearGradient id="lookFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={LOOK_COLOR} stopOpacity={0.35} />
-            <stop offset="100%" stopColor={LOOK_COLOR} stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="agentFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={AGENT_COLOR} stopOpacity={0.3} />
-            <stop offset="100%" stopColor={AGENT_COLOR} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-        <XAxis
-          dataKey="tick" type="number" domain={[0, 'dataMax']}
-          tick={axisTick} tickLine={false} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
-          tickMargin={6}
-        />
-        <YAxis
-          width={42} domain={[0, Math.ceil(maxWait)]} allowDecimals={false}
-          tick={axisTick} tickLine={false} axisLine={false}
-        />
-        <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.18)', strokeDasharray: '3 3' }} />
-        <ReferenceLine x={currentTick} stroke="#e2e8f0" strokeOpacity={0.55} strokeDasharray="2 3" />
-        <Area
-          type="monotone" dataKey="look" name="LOOK Heuristic"
-          stroke={LOOK_COLOR} strokeWidth={2} fill="url(#lookFill)"
-          dot={false} activeDot={{ r: 4, strokeWidth: 0 }} isAnimationActive={false}
-        />
-        {hasAgentic && (
-          <Area
-            type="monotone" dataKey="gemini" name="Gemini Agent"
-            stroke={AGENT_COLOR} strokeWidth={2} strokeDasharray="4 3" fill="url(#agentFill)"
-            dot={false} activeDot={{ r: 4, strokeWidth: 0 }} connectNulls isAnimationActive={false}
-          />
-        )}
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
