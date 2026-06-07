@@ -74,3 +74,102 @@ def test_mock_agentic_dispatcher_multi_car():
     summary = metrics.get_summary()
     assert summary["passengers_completed"] == 2
     assert summary["total_ticks"] > 0
+
+
+def test_agentic_dispatcher_fallback_on_failure(monkeypatch):
+    """Verify that if agent.structured_output raises an error, the dispatcher falls back to LOOK heuristic."""
+    from strands import Agent
+    def mock_structured_output(*args, **kwargs):
+        raise ValueError("Simulated structured output failure")
+    
+    monkeypatch.setattr(Agent, "structured_output", mock_structured_output)
+
+    # Setup simulation
+    building = Building(num_floors=5)
+    car = Car(car_id="C1", initial_floor=0)
+    dispatcher = DispatcherAgent()
+    metrics = MetricsCollector()
+    
+    # Bypass ensure_model by manually setting dispatcher.model to a dummy value
+    dispatcher.model = "dummy"
+    
+    # Disable mock mode for this test, and set provider to gemma to bypass key checks
+    os.environ["MOCK_GEMINI"] = "false"
+    old_provider = os.environ.get("LLM_PROVIDER")
+    os.environ["LLM_PROVIDER"] = "gemma"
+    
+    # We also need to monkeypatch the Agent __call__ to do nothing (since it calls the model)
+    monkeypatch.setattr(Agent, "__call__", lambda *args, **kwargs: None)
+
+    try:
+        sim = Simulation(building, car, dispatcher, metrics, verbose=True)
+        # Spawn a passenger so dispatcher is called
+        p1 = Passenger("P1", source_floor=0, target_floor=3, spawn_time=0)
+        building.add_passenger(p1)
+        
+        # Call dispatcher
+        target = dispatcher.dispatch(sim)
+        
+        # Verify fallback target was returned (using LOOK, which returns 0 to pick up the passenger at 0)
+        assert target is not None
+        assert target == 0
+    finally:
+        os.environ["MOCK_GEMINI"] = "true"
+        if old_provider is not None:
+            os.environ["LLM_PROVIDER"] = old_provider
+        else:
+            os.environ.pop("LLM_PROVIDER", None)
+
+
+def test_agentic_dispatcher_group_fallback_on_failure(monkeypatch):
+    """Verify that if group agent.structured_output raises an error, the dispatcher falls back to LOOK heuristic."""
+    from strands import Agent
+    def mock_structured_output(*args, **kwargs):
+        raise ValueError("Simulated group structured output failure")
+    
+    monkeypatch.setattr(Agent, "structured_output", mock_structured_output)
+
+    # Setup simulation
+    building = Building(num_floors=5)
+    cars = [Car("C1", 0), Car("C2", 0)]
+    dispatcher = DispatcherAgent()
+    metrics = MetricsCollector()
+    
+    # Bypass ensure_model by manually setting dispatcher.model to a dummy value
+    dispatcher.model = "dummy"
+    
+    # Disable mock mode for this test, and set provider to gemma to bypass key checks
+    os.environ["MOCK_GEMINI"] = "false"
+    old_provider = os.environ.get("LLM_PROVIDER")
+    os.environ["LLM_PROVIDER"] = "gemma"
+    
+    # We also need to monkeypatch the Agent __call__ to do nothing (since it calls the model)
+    monkeypatch.setattr(Agent, "__call__", lambda *args, **kwargs: None)
+
+    try:
+        sim = Simulation(
+            building=building,
+            car=cars[0],
+            dispatcher=dispatcher,
+            metrics_collector=metrics,
+            verbose=True,
+            extra_cars=cars[1:]
+        )
+        # Spawn a passenger so dispatcher is called
+        p1 = Passenger("P1", source_floor=0, target_floor=3, spawn_time=0)
+        building.add_passenger(p1)
+        
+        # Call dispatch_group
+        assignments = dispatcher.dispatch_group(sim)
+        
+        # Verify fallback assignments were returned using Group LOOK heuristic
+        assert assignments is not None
+        assert "C1" in assignments or "C2" in assignments
+    finally:
+        os.environ["MOCK_GEMINI"] = "true"
+        if old_provider is not None:
+            os.environ["LLM_PROVIDER"] = old_provider
+        else:
+            os.environ.pop("LLM_PROVIDER", None)
+
+

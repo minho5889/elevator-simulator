@@ -9,7 +9,7 @@ from elevatorsim.core.simulation import Simulation
 from elevatorsim.core.traffic import TrafficGenerator
 from elevatorsim.policy.heuristic import HeuristicDispatcher
 from elevatorsim.policy.agentic import DispatcherAgent
-from elevatorsim.config import seed_rng, get_gemini_api_key
+from elevatorsim.config import seed_rng, get_gemini_api_key, get_llm_provider, OLLAMA_MODEL_ID
 
 def run_heuristic_stochastic(seed: int, ticks: int, arrival_rate: float, profile: str) -> MetricsCollector:
     """Run stochastic simulation with Heuristic (LOOK) policy."""
@@ -40,8 +40,9 @@ def run_heuristic_stochastic(seed: int, ticks: int, arrival_rate: float, profile
 
 def run_agentic_stochastic(seed: int, ticks: int, arrival_rate: float, profile: str) -> MetricsCollector:
     """Run stochastic simulation with Strands DispatcherAgent."""
+    provider = get_llm_provider()
     print("\n" + "=" * 50)
-    print(" RUNNING AGENTIC STOCHASTIC POLICY (Strands + Gemini-3.5-Flash)")
+    print(f" RUNNING AGENTIC STOCHASTIC POLICY (Strands + {provider.upper()})")
     print(f" Profile: {profile} | Arrival Rate: {arrival_rate} | Ticks: {ticks} | Seed: {seed}")
     print("=" * 50)
 
@@ -61,7 +62,7 @@ def run_agentic_stochastic(seed: int, ticks: int, arrival_rate: float, profile: 
     sim = Simulation(building, car, dispatcher, metrics, traffic_generator=traffic, verbose=True)
     sim.run_until_complete(max_ticks=ticks)
     
-    metrics.print_summary("Agentic Strands/Gemini Stochastic Summary")
+    metrics.print_summary(f"Agentic Strands/{provider.upper()} Stochastic Summary")
     return metrics
 
 
@@ -80,17 +81,19 @@ def main() -> None:
     # 1. Run the Heuristic LOOK baseline (requires no API key)
     heuristic_metrics = run_heuristic_stochastic(seed, ticks, arrival_rate, profile)
     
-    # 2. Check if API Key is configured
+    # 2. Check if LLM provider is local (gemma) or if a Gemini key is set
+    provider = get_llm_provider()
     api_key = get_gemini_api_key()
-    if not api_key:
+    if provider != "gemma" and not api_key:
         print("\n" + "!" * 80)
-        print("WARNING: GEMINI_API_KEY is not set. Skipping agentic stochastic policy run.")
-        print("To run the agentic comparison, populate GEMINI_API_KEY in your local .env file.")
+        print("WARNING: GEMINI_API_KEY is not set and LLM_PROVIDER is not 'gemma'. Skipping agentic stochastic policy run.")
+        print("To run the agentic comparison, either set LLM_PROVIDER=gemma (with native Ollama + gemma4:e4b running)")
+        print("or populate GEMINI_API_KEY in your local .env file.")
         print("!" * 80 + "\n")
         return
 
-    # 3. Warn about quota limits if running without --full
-    if "--full" not in sys.argv:
+    # 3. Warn about quota limits if running without --full (only relevant for Gemini)
+    if provider == "gemini" and "--full" not in sys.argv:
         print("\n" + "*" * 80)
         print("NOTICE: Running a short 50-tick A/B simulation to preserve daily free tier quotas.")
         print("To run a full 150-tick simulation, pass the '--full' command-line flag.")
@@ -107,7 +110,7 @@ def main() -> None:
         print("\n" + "=" * 60)
         print(" TIER 1 STOCHASTIC PERFORMANCE COMPARISON")
         print("=" * 60)
-        print(" Metric                  | Heuristic (LOOK) | Agentic (Gemini)")
+        print(f" Metric                  | Heuristic (LOOK) | Agentic ({provider.upper()})")
         print("-------------------------|------------------|------------------")
         print(f" Total Ticks Run         | {h_summary['total_ticks']:<16} | {a_summary['total_ticks']:<16}")
         print(f" Total Car Movements     | {h_summary['total_car_moves']:<16} | {a_summary['total_car_moves']:<16}")
@@ -118,14 +121,20 @@ def main() -> None:
         print(f" Avg Transit Time (ticks)| {h_summary['avg_transit_time']:<16} | {a_summary['avg_transit_time']:<16}")
         print(f" Avg Total Time (ticks)  | {h_summary['avg_total_time']:<16} | {a_summary['avg_total_time']:<16}")
         print("=" * 60)
-        print("Gemini decisions are non-deterministic and thinking is active by default.")
+        if provider == "gemini":
+            print("Gemini decisions are non-deterministic and thinking is active by default.")
+        else:
+            print(f"{provider.upper()} decisions are reproducible via temperature=0 + fixed seed.")
         print("=" * 60 + "\n")
         
     except Exception as e:
         print("\n" + "!" * 80)
         print(f"ERROR: Agentic policy execution failed: {e}")
-        print("This is likely due to your Google AI Studio Free Tier daily quota (20 requests/day)")
-        print("being exhausted. Enable pay-as-you-go billing to lift this limit.")
+        if provider == "gemini":
+            print("This is likely due to your Google AI Studio Free Tier daily quota (20 requests/day)")
+            print("being exhausted. Enable pay-as-you-go billing to lift this limit.")
+        else:
+            print(f"Please ensure your local Ollama server is running at OLLAMA_HOST and {OLLAMA_MODEL_ID} is pulled.")
         print("!" * 80 + "\n")
 
 

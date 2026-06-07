@@ -16,7 +16,7 @@ from strands import Agent
 
 from elevatorsim.policy.base import Dispatcher, GroupDispatcher
 from elevatorsim.policy.schemas import DispatchDecision, GroupDispatchDecision
-from elevatorsim.config import get_gemini_model, get_gemini_api_key
+from elevatorsim.config import get_model, get_gemini_api_key, get_llm_provider
 from elevatorsim.tools.sim_tools import (
     set_active_simulation,
     clear_active_simulation,
@@ -56,21 +56,22 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
         )
 
     def _ensure_model(self) -> None:
-        """Lazily construct the Gemini model, requiring an API key."""
+        """Lazily construct the Gemini or Ollama model, requiring API key for gemini."""
         if self._is_mock_mode():
             return
-        api_key = get_gemini_api_key()
-        if not api_key:
-            raise ValueError(
-                "GEMINI_API_KEY is not set in environment or .env file. "
-                "The agentic policy cannot run without an API key."
-            )
+        if get_llm_provider() == "gemini":
+            api_key = get_gemini_api_key()
+            if not api_key:
+                raise ValueError(
+                    "GEMINI_API_KEY is not set in environment or .env file. "
+                    "The agentic policy cannot run without an API key."
+                )
         if self.model is None:
-            self.model = get_gemini_model()
+            self.model = get_model()
 
     def _rate_limit(self, simulation: Any, note: str) -> None:
         """Pause to stay under Google AI Studio free-tier rate limits."""
-        if self._is_mock_mode():
+        if self._is_mock_mode() or get_llm_provider() == "gemma":
             return
         if getattr(simulation, "verbose", False):
             print(f"[RATE LIMITING] Waiting {RATE_LIMIT_SECONDS}s {note}...")
@@ -123,7 +124,12 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
             "Guidelines:\n"
             "- First, gather the current state using your tools.\n"
             f"- Next, decide the optimal target floor (0-{top}) to navigate to next.\n"
-            "- Ground your decisions strictly in the simulation state returned by the tools."
+            "- IMPORTANT: If the car has passengers onboard, you MUST choose a target floor "
+            "corresponding to one of its onboard passengers' destinations so they can be delivered.\n"
+            "- Ground your decisions strictly in the simulation state returned by the tools.\n"
+            "- You only have access to read-only state-gathering tools. Do NOT attempt to call "
+            "any action or modification tools (such as 'set_car_target' or 'dispatch'); your decision "
+            "must be returned solely via structured output in the next phase."
         )
 
         agent = Agent(
@@ -141,11 +147,37 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
             )
 
             self._rate_limit(simulation, "before structured decision call")
-            decision: DispatchDecision = agent.structured_output(
-                DispatchDecision,
-                f"Make your final target floor selection. Choose the next floor "
-                f"(0-{top}) the elevator should target.",
-            )
+            max_attempts = 2
+            decision = None
+            for attempt in range(1, max_attempts + 1):
+                current_agent = agent
+                if attempt > 1 and get_llm_provider() == "gemma":
+                    temp_model = get_model(temperature=0.3)
+                    current_agent = Agent(
+                        model=temp_model,
+                        tools=[get_elevator_state, get_floor_calls],
+                        system_prompt=system_prompt,
+                    )
+                    current_agent.messages = list(agent.messages)
+
+                try:
+                    decision = current_agent.structured_output(
+                        DispatchDecision,
+                        f"Make your final target floor selection. Choose the next floor "
+                        f"(0-{top}) the elevator should target.",
+                    )
+                    break
+                except Exception as e:
+                    if attempt == max_attempts:
+                        from elevatorsim.policy.heuristic import HeuristicDispatcher
+                        fallback_target = HeuristicDispatcher().dispatch(simulation)
+                        print(
+                            f"[AGENTIC FALLBACK] structured output failed after {max_attempts} attempts "
+                            f"(error: {e}), using LOOK heuristic target: {fallback_target}"
+                        )
+                        return fallback_target
+                    if getattr(simulation, "verbose", False):
+                        print(f"[WARNING] Agent structured output failed on attempt {attempt}: {e}. Retrying...")
 
             target = self._clamp(decision.target_floor, num_floors)
             if getattr(simulation, "verbose", False):
@@ -214,9 +246,15 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
             "same floor.\n\n"
             "Guidelines:\n"
             "- First, gather the current state of all cars and floor queues using your tools.\n"
-            f"- Then assign a target floor (0-{top}) only to currently idle cars.\n"
+            f"- Then assign a target floor (0-{top}) to currently idle cars (cars with no target floor).\n"
+            "- IMPORTANT: If an idle car has passengers onboard, you MUST assign it a target floor "
+            "corresponding to one of its onboard passengers' destinations so they can be delivered. "
+            "Do not leave such a car without a target floor assignment.\n"
             "- Avoid assigning two idle cars to the same floor unless demand requires it.\n"
-            "- Ground your decisions strictly in the simulation state returned by the tools."
+            "- Ground your decisions strictly in the simulation state returned by the tools.\n"
+            "- You only have access to read-only state-gathering tools. Do NOT attempt to call "
+            "any action or modification tools (such as 'set_car_target' or 'dispatch'); your decision "
+            "must be returned solely via structured output in the next phase."
         )
 
         agent = Agent(
@@ -234,11 +272,37 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
             )
 
             self._rate_limit(simulation, "before structured group decision call")
-            decision: GroupDispatchDecision = agent.structured_output(
-                GroupDispatchDecision,
-                f"Assign target floors (0-{top}) to the idle cars: {idle_list}. "
-                "Return one assignment per car you choose to dispatch.",
-            )
+            max_attempts = 2
+            decision = None
+            for attempt in range(1, max_attempts + 1):
+                current_agent = agent
+                if attempt > 1 and get_llm_provider() == "gemma":
+                    temp_model = get_model(temperature=0.3)
+                    current_agent = Agent(
+                        model=temp_model,
+                        tools=[get_all_cars_state, get_floor_calls],
+                        system_prompt=system_prompt,
+                    )
+                    current_agent.messages = list(agent.messages)
+
+                try:
+                    decision = current_agent.structured_output(
+                        GroupDispatchDecision,
+                        f"Assign target floors (0-{top}) to the idle cars: {idle_list}. "
+                        "Return one assignment per car you choose to dispatch.",
+                    )
+                    break
+                except Exception as e:
+                    if attempt == max_attempts:
+                        from elevatorsim.policy.heuristic import GroupHeuristicDispatcher
+                        fallback_assignments = GroupHeuristicDispatcher().dispatch_group(simulation)
+                        print(
+                            f"[AGENTIC FALLBACK] structured output failed after {max_attempts} attempts "
+                            f"(error: {e}), using LOOK heuristic assignments: {fallback_assignments}"
+                        )
+                        return fallback_assignments
+                    if getattr(simulation, "verbose", False):
+                        print(f"[WARNING] Agent group structured output failed on attempt {attempt}: {e}. Retrying...")
 
             assignments: Dict[str, int | None] = {}
             for a in decision.assignments:

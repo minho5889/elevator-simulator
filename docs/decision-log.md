@@ -50,7 +50,7 @@ This log documents key architectural decisions made during the design and develo
 * **Rationale for Choice:**
   * `gemini-1.5-flash` is deprecated.
   * `gemini-3.5-flash` is generally available (GA), fast, cost-effective, and optimized for tool calling and structured outputs.
-  * *Note on Non-Determinism:* Gemini 3.5 Flash deprecated sampling parameters (`temperature`, `top_p`), meaning we cannot set `temperature=0.0`. This introduces non-determinism, which further validates our LOOK baseline and trace-saving design.
+  * *Note on Non-Determinism:* Gemini 3.5 Flash deprecated sampling parameters (`temperature`, `top_p`), meaning we cannot set `temperature=0.0` for cloud runs. This introduces non-determinism for cloud-based runs. Determinism and reproducibility are now achieved locally via the offline Gemma 4 local provider (see Decision 12).
 
 ---
 
@@ -68,11 +68,11 @@ This log documents key architectural decisions made during the design and develo
 ## Decision 6: Rate Limiting and Quota Management for API Interactions
 
 * **Context:** Free Tier Google AI Studio API limits restrict developers to 15 RPM (Requests Per Minute) and small daily limits. Running simulations step-by-step can easily trigger HTTP 429 rate limit exceptions.
-* **Proposed Option:** Introduce a mandatory 13-second rate-limiting delay between LLM calls (first state observation and final decision) to pace calls to under 5 RPM. Additionally, skip live runs if the `GEMINI_API_KEY` is not found, default simulation runs to a short 50-tick count with an optional `--full` flag for 150-ticks, and catch quota exhaustion errors gracefully to avoid breaking the CLI runner.
+* **Proposed Option:** Introduce a mandatory 13-second rate-limiting delay between LLM calls (first state observation and final decision) to pace calls to under 5 RPM when running in cloud `gemini` mode. Bypass this delay when using the local `gemma` provider or `mock` mode. Additionally, skip live runs if the `GEMINI_API_KEY` is not found and `LLM_PROVIDER` is not `gemma`, default simulation runs to a short 50-tick count with an optional `--full` flag for 150-ticks, and catch quota exhaustion errors gracefully.
 * **Alternative Rejected:** Run full-speed steps or require a paid plan for basic execution.
 * **Rationale for Choice:**
-  * Ensures that anyone can run the walking skeleton offline via the LOOK baseline or run a short comparison without quota failures.
-  * Paces requests safely below the free tier limit, preventing aborted simulation runs.
+  * Ensures that anyone can run the walking skeleton offline via the LOOK baseline or local Gemma 4 without rate limit delays or quota failures.
+  * Paces cloud requests safely below the free tier limit, preventing aborted simulation runs.
 
 ---
 
@@ -130,5 +130,19 @@ This log documents key architectural decisions made during the design and develo
   - `FastMCP` standardizes tool definitions and communications out-of-the-box using stdio.
   - LLM agents (like Gemini or Claude) can natively connect to this server as an MCP client and execute simulation steps or query benchmarks.
   - Aligns with the Tier 3 roadmap of building swarm building controllers programmatically.
+
+---
+
+## Decision 12: Local LLM Provider Integration via Ollama / Gemma 4
+
+* **Context:** Free-tier Gemini quota limits (~20 requests/day) and 26-second pacing delays make extensive offline agentic runs tedious and restrict testing scale.
+* **Proposed Option:** Support a native local-LLM path using the Strands `OllamaModel` running a locally-hosted Gemma 4 (`gemma4:e4b`) server via Ollama.
+* **Alternative Rejected:** Containerizing Ollama on macOS.
+* **Rationale for Choice:**
+  * **Unlimited & Offline:** Bypasses Gemini API key requirements and daily quotas, running 100% offline.
+  * **Zero Pacing Sleep:** Bypasses the 26-second rate-limiting delays required for the Google AI Studio free tier.
+  * **Reproducible Decisions:** Unlike cloud Gemini, Ollama allows temperature=0 and seed pinning (`options={"seed": seed}`), restoring fully reproducible A/B agentic runs.
+  * **Mac Native (Cask vs Formula):** Must use native macOS Ollama (via cask or ollama.com), not the standard brew formula (which lacks the `llama-server` backend and causes runtime crashes).
+  * **No Docker on Mac:** Containerizing Ollama on macOS is rejected. Docker Desktop's Linux VM has no access to Mac Metal GPU acceleration, causing it to run on CPU-only which makes inference painfully slow (taking minutes instead of seconds).
 
 

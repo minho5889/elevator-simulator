@@ -39,12 +39,19 @@ flowchart TD
 
     Heuristic["HeuristicDispatcher<br>(LOOK single-car)"]
     GroupHeuristic["GroupHeuristicDispatcher<br>(Nearest-idle-car LOOK)"]
-    Agent["DispatcherAgent<br>(Strands + Gemini-3.5-Flash)"]
+    Agent["DispatcherAgent<br>(Strands Agent)"]
+
+    subgraph Models ["strands.models"]
+        Gemini["GeminiModel<br>(Cloud Gemini 3.5 Flash)"]
+        Ollama["OllamaModel<br>(Local Gemma 4 E4B)"]
+    end
 
     Core -.->|queries state| Protocols
     Legacy ==> Heuristic
     Legacy ==> Agent
     Group ==> GroupHeuristic
+    Group ==> Agent
+    Agent --> Models
 
     classDef core fill:#e1f5fe,stroke:#039be5,stroke-width:2px,color:#000;
     classDef interface fill:#fff3e0,stroke:#ffb74d,stroke-width:2px,color:#000;
@@ -93,26 +100,30 @@ All state changes emit rich domain events (e.g. `PassengerSpawned`, `CallRegiste
 
 To ensure reliability and respect Google AI Studio Free Tier limits (which impose strict rate limits and daily quotas), the project incorporates several protection strategies:
 
-* **Rate-Limiting Sleeps:** In `DispatcherAgent`, we insert a 13-second wait (`time.sleep(13)`) before the initial state observation tool call, and another 13-second wait before calling `.structured_output()`. This 26-second delay per tick prevents hitting Google's 15 Requests Per Minute (RPM) limits.
+* **Rate-Limiting Sleeps:** In `DispatcherAgent` when using the cloud `gemini` provider, we insert a 13-second wait (`time.sleep(13)`) before the initial state observation tool call, and another 13-second wait before calling `.structured_output()`. This 26-second delay per tick prevents hitting Google's 15 Requests Per Minute (RPM) limits.
+* **Local Provider Bypass:** When `LLM_PROVIDER` is set to `gemma`, all rate-limiting sleeps are bypassed. Since the model runs locally via Ollama, there is no RPM limit, allowing fast tick iterations (governed purely by local GPU/CPU compute latency).
 * **Offline Baseline Mode (Quota Resilience):** The Heuristic LOOK baseline dispatcher operates 100% offline without requiring a `GEMINI_API_KEY`.
-* **Skipping Live Runs:** If the `GEMINI_API_KEY` is not detected in the environment or `.env` file, the runners (`run_tier0.py` and `run_tier1.py`) skip the agentic run and gracefully output the heuristic baseline results, preventing runtime crashes.
+* **Skipping Live Runs:** If the `GEMINI_API_KEY` is not detected in the environment or `.env` file, and `LLM_PROVIDER` is not set to `gemma`, the runners (`run_tier0.py` and `run_tier1.py`) skip the agentic run and gracefully output the heuristic baseline results, preventing runtime crashes.
 * **Quota Exhaustion Handling:** In `run_tier1.py`, the agentic execution is wrapped in a `try-except` block. If a quota exhaustion limit is reached, it catches the exception and logs a clean, informative error message instructing the developer how to resolve the issue (e.g. by enabling pay-as-you-go billing).
 * **Conserving Daily Quotas:** The default duration for evaluation runs is capped at 50 ticks to conserve API calls. A `--full` command-line flag is available to scale the run up to 150 ticks for paid tiers.
 
 ---
 
-## 4. Agentic Design & Gemini Non-Determinism
+## 4. Agentic Design & Model Providers
 
 ### Two-Phase Tool Calling + Structured Output
-Gemini 3.5 Flash requires tool outputs to be mapped with both `id` and `name` attributes inside `FunctionResponse`. To ensure high reliability, the `DispatcherAgent` executes a two-phase flow:
-1. **Phase 1 (Observe):** The agent runs tools (`get_elevator_state`, `get_floor_calls`) and writes an analysis of the building status.
-2. **Phase 2 (Decide):** The agent calls `.structured_output(DispatchDecision, prompt)` which carries forward the history from Phase 1 and returns the validated Pydantic decision.
+Gemini 3.5 Flash and Gemma 4 require tool outputs to be mapped with both `id` and `name` attributes inside `FunctionResponse`. To ensure high reliability, the `DispatcherAgent` executes a two-phase flow:
+1. **Phase 1 (Observe):** The agent runs tools (`get_elevator_state`, `get_floor_calls` or `get_all_cars_state`, `get_floor_calls`) and writes an analysis of the building status.
+2. **Phase 2 (Decide):** The agent calls `.structured_output(DispatchDecision, prompt)` or `.structured_output(GroupDispatchDecision, prompt)` which carries forward the history from Phase 1 and returns the validated Pydantic decision.
 
-### Gemini Non-Determinism
-* **No Temperature:** Google deprecated sampling parameters (`temperature`, `top_p`) on Gemini 3.5 Flash.
-* **Thought Preservation:** Thinking is active and cached by default in Gemini 3.5 Flash.
-* **Result:** Because we cannot force `temperature=0` and thinking history introduces variability, **agentic dispatch decisions are non-deterministic**.
-* **Implication:** The non-deterministic nature of the LLM highlights why having a solid, local LOOK heuristic baseline and recording reproducible simulation trace metrics are crucial for comparison and evaluation.
+### Model Providers
+* **GeminiModel (`gemini`)**: Connects to the cloud-hosted Gemini 3.5 Flash. Requires internet access and a `GEMINI_API_KEY`.
+* **OllamaModel (`gemma`)**: Connects to a local Ollama server running the Gemma 4 E4B model. Does not require an API key or internet access.
+
+### Non-Determinism vs. Local Reproducibility
+* **Cloud Non-Determinism:** Google deprecated sampling parameters (`temperature`, `top_p`) on Gemini 3.5 Flash, and thinking is active by default. Because we cannot force `temperature=0` and thinking history introduces variability, cloud-based agentic decisions are non-deterministic.
+* **Local Reproducibility:** By contrast, the local `OllamaModel` supports explicit configuration of `temperature=0` and seed pinning (`options={"seed": seed}`). This completely restores reproducible A/B testing: executing the same seed scenario twice yields identical agentic dispatch decisions.
+* **Robustness & Retries:** Small local models like Gemma 4 occasionally return malformed structures or fail Pydantic validation. To guarantee runtime robustness, the structured output phase in both single-car and multi-car dispatchers wraps `.structured_output()` in a 2-attempt retry block.
 
 ---
 

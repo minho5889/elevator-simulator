@@ -8,7 +8,7 @@ from elevatorsim.core.metrics import MetricsCollector
 from elevatorsim.core.simulation import Simulation
 from elevatorsim.policy.heuristic import HeuristicDispatcher
 from elevatorsim.policy.agentic import DispatcherAgent
-from elevatorsim.config import seed_rng, get_gemini_api_key
+from elevatorsim.config import seed_rng, get_gemini_api_key, get_llm_provider
 
 def build_scripted_scenario(sim: Simulation) -> None:
     """
@@ -52,8 +52,9 @@ def run_heuristic_baseline(seed: int) -> MetricsCollector:
 
 def run_agentic_policy(seed: int) -> MetricsCollector:
     """Run simulation with LLM-backed Strands Agent policy."""
+    provider = get_llm_provider()
     print("\n" + "=" * 50)
-    print(f" RUNNING AGENTIC POLICY (Strands + Gemini-3.5-Flash) - Seed {seed}")
+    print(f" RUNNING AGENTIC POLICY (Strands + {provider.upper()}) - Seed {seed}")
     print("=" * 50)
     
     # 1. Reset and Seed RNG
@@ -72,7 +73,7 @@ def run_agentic_policy(seed: int) -> MetricsCollector:
     # 4. Execute simulation
     sim.run_until_complete(max_ticks=50)
     
-    metrics.print_summary("Agentic (Strands + Gemini) Policy Summary")
+    metrics.print_summary(f"Agentic (Strands + {provider.upper()}) Policy Summary")
     return metrics
 
 
@@ -83,12 +84,14 @@ def main() -> None:
     # Run the LOOK baseline (always runs, no API key needed)
     heuristic_metrics = run_heuristic_baseline(seed)
     
-    # Check if Gemini key is available for the agentic run
+    # Check if LLM provider is local (gemma) or if a Gemini key is set
+    provider = get_llm_provider()
     api_key = get_gemini_api_key()
-    if not api_key:
+    if provider != "gemma" and not api_key:
         print("\n" + "!" * 80)
-        print("WARNING: GEMINI_API_KEY is not set. Skipping agentic policy run.")
-        print("To run the agentic comparison, populate GEMINI_API_KEY in your .env file.")
+        print("WARNING: GEMINI_API_KEY is not set and LLM_PROVIDER is not 'gemma'. Skipping agentic policy run.")
+        print("To run the agentic comparison, either set LLM_PROVIDER=gemma (with native Ollama + gemma4:e4b running)")
+        print("or populate GEMINI_API_KEY in your .env file.")
         print("!" * 80 + "\n")
         return
 
@@ -102,7 +105,7 @@ def main() -> None:
     print("\n" + "=" * 60)
     print(" A/B PERFORMANCE COMPARISON")
     print("=" * 60)
-    print(" Metric                  | Heuristic (LOOK) | Agentic (Gemini)")
+    print(f" Metric                  | Heuristic (LOOK) | Agentic ({provider.upper()})")
     print("-------------------------|------------------|------------------")
     print(f" Total Ticks to Clear    | {h_summary['total_ticks']:<16} | {a_summary['total_ticks']:<16}")
     print(f" Total Car Movements     | {h_summary['total_car_moves']:<16} | {a_summary['total_car_moves']:<16}")
@@ -111,8 +114,11 @@ def main() -> None:
     print(f" Avg Transit Time (ticks)| {h_summary['avg_transit_time']:<16} | {a_summary['avg_transit_time']:<16}")
     print(f" Avg Total Time (ticks)  | {h_summary['avg_total_time']:<16} | {a_summary['avg_total_time']:<16}")
     print("=" * 60)
-    print("Note: Gemini decisions are non-deterministic due to legacy temperature parameters")
-    print("being deprecated in Gemini 3.5 Flash and thought preservation being enabled.")
+    if provider == "gemini":
+        print("Note: Gemini decisions are non-deterministic due to legacy temperature parameters")
+        print("being deprecated in Gemini 3.5 Flash and thought preservation being enabled.")
+    else:
+        print(f"Note: {provider.upper()} decisions are reproducible via temperature=0 + fixed seed.")
     print("=" * 60 + "\n")
 
 

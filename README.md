@@ -33,17 +33,41 @@ uv pip show google-genai
 
 ---
 
-## 3. Environment Configuration
+## 3. Environment Configuration & Model Providers
 
 Copy the environment template:
 ```bash
 cp .env.example .env
 ```
-Open `.env` and configure your Google AI Studio API key:
-```ini
-GEMINI_API_KEY=your_actual_key_here
-```
-*Note: Core tests and heuristic simulations run successfully even if the API key is not configured.*
+
+We support three LLM provider modes via the `LLM_PROVIDER` environment variable:
+1. **`gemini` (Cloud - Default)**: Connects to Google AI Studio. Requires `GEMINI_API_KEY`.
+2. **`gemma` (Local)**: Connects to a local Ollama instance running `gemma4:e4b`. No API key needed, unlimited free queries, zero rate limits, and 100% reproducible.
+3. **`mock`**: Runs in an offline, mock heuristic fallback mode. Requires `MOCK_GEMINI=true` or API key set to `"mock"`.
+
+*Note: Core tests and heuristic simulations run successfully even if no API key is configured.*
+
+### Local Ollama Setup (macOS)
+1. **Install Ollama**: Install via brew cask (do NOT use the CLI formula because it lacks the backend `llama-server` binary):
+   ```bash
+   brew install --cask ollama
+   ```
+   *(Downloading the app directly from [ollama.com](https://ollama.com) also works.)*
+2. **Download Model**: Pull the Gemma 4 E4B model (~9.6GB):
+   ```bash
+   ollama pull gemma4:e4b
+   ```
+3. **Start Server**: Ensure the Ollama service is running:
+   ```bash
+   ollama serve
+   ```
+4. **Configure Environment**: Set the following in your `.env` file:
+   ```ini
+   LLM_PROVIDER=gemma
+   OLLAMA_HOST=http://localhost:11434
+   OLLAMA_MODEL_ID=gemma4:e4b
+   ```
+   *Warning: Do not containerize Ollama via Docker on macOS. Docker Desktop's Linux VM has no Metal GPU acceleration on macOS, resulting in CPU-only mode which is extremely slow.*
 
 ---
 

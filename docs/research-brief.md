@@ -104,8 +104,30 @@ To ensure absolute reliability, the agent interaction is implemented in a **two-
 
 ---
 
-## 5. Deep Links & Reference Sources
+## 5. Local LLM Integration: Gemma 4 via Ollama
+
+To support developer workflows without API key constraints, we validated and wired in local model support using the Strands Ollama model provider.
+
+### Gemma 4 Specifications
+* **Release Date:** 2026-04-02
+* **Model Varieties:** E2B, E4B, 26B-MoE, 31B-Dense
+* **License:** Apache-2.0 open-weights license
+* **Capabilities:** Native support for function calling and structured outputs (Pydantic validation).
+* **Provider Wrapper:** Supported natively in Strands via `from strands.models.ollama import OllamaModel`.
+
+### Local Validation Probe & Performance
+* **Model ID:** `gemma4:e4b` (~9.6GB) running via native Ollama server.
+* **Environment:** Tested on Apple Silicon (M4/16GB).
+* **Inference Latency:** ~17 seconds per inference tick.
+* **Core Advantages:**
+  * **Quota Resilient:** Bypasses Gemini's 20 requests/day free quota.
+  * **Bypasses Pacing Sleeps:** No 26-second rate limit sleeps are required, speeding up simulations.
+  * **100% Reproducible:** Supports explicit seed pinning (`options={"seed": seed}`) and `temperature=0`, which the Gemini 3.5 Flash cloud path cannot do.
+
+---
+
+## 6. Deep Links & Reference Sources
 * **Gemini 3.5 Migration Guide:** [ai.google.dev/gemini-api/docs/gemini-3-5-migration](https://ai.google.dev/gemini-api/docs/gemini-3-5-migration)
 * **Gemini Model Parameters & Reference:** [ai.google.dev/gemini-api/docs/models/gemini](https://ai.google.dev/gemini-api/docs/models/gemini)
 * **Strands SDK Repository:** [github.com/strands-agents/sdk-python](https://github.com/strands-agents/sdk-python)
-* **Strands Gemini Provider Source:** [github.com/strands-agents/sdk-python/blob/main/src/strands/models/gemini.py](https://github.com/strands-agents/sdk-python/blob/main/src/strands/models/gemini.py)
+* **Strands Ollama Provider Source:** [github.com/strands-agents/sdk-python/blob/main/src/strands/models/ollama.py](https://github.com/strands-agents/sdk-python/blob/main/src/strands/models/ollama.py)

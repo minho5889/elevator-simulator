@@ -50,3 +50,20 @@ This log is seeded for tracking your mastery of the Strands Agents SDK and agent
 * **Google AI Studio Free Tier Pace:** Free tier keys are strictly limited to 15 RPM. A single simulator tick requiring a two-phase dispatch flow consumes 2 requests. 
 * **Safe Delay Pacing:** Sleeping for 13 seconds between API calls inside `DispatcherAgent` effectively restricts the rate to under 5 RPM, providing a comfortable buffer against 429 errors.
 * **Resilience Patterns:** Incorporating a fallback LOOK heuristic, checking for `GEMINI_API_KEY` before starting agent runs, and catching quota limit exceptions prevents local pipeline failures and enables continuous development.
+
+---
+
+## 4. Model Provider Swapping & Local Offline Execution
+
+### A. Factory Pattern for Provider Abstraction
+* **Concept:** Instead of hardcoding model construction or provider imports inside policy/agent classes, use a central factory (`get_model()`) inside a configuration module.
+* **Where it lives in Code:**
+  * [src/elevatorsim/config.py](file:///Users/minholee/Projects/elevator-simulator/src/elevatorsim/config.py): The `get_model()` factory resolves `LLM_PROVIDER` and returns either a `GeminiModel` (cloud) or an `OllamaModel` (local).
+  * [src/elevatorsim/policy/agentic.py](file:///Users/minholee/Projects/elevator-simulator/src/elevatorsim/policy/agentic.py): Simply calls `self.model = get_model()`, leaving the dispatcher logic completely unchanged.
+* **Key Learning:** The dispatcher agent only interacts with the generic model interface. Swapping from cloud-based API endpoints to a locally-run LLM requires zero changes to the orchestration workflow, prompt structure, or tool calling loops.
+
+### B. Local Model Robustness (Structured Output Retries)
+* **Concept:** Small local models (e.g. Gemma 4 E4B) are faster and free from API rate limits, but occasionally produce invalid formatting or fail Pydantic validation compared to larger cloud models.
+* **Where it lives in Code:**
+  * [src/elevatorsim/policy/agentic.py](file:///Users/minholee/Projects/elevator-simulator/src/elevatorsim/policy/agentic.py): Retries the `structured_output()` call up to 2 times upon encountering validation/parsing exceptions.
+* **Key Learning:** Adding lightweight retry logic around the structured output phase significantly improves the execution stability of agent runs when powered by local models, without affecting the simulator's deterministic physics loop.
