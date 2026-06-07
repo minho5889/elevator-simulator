@@ -173,3 +173,77 @@ def test_agentic_dispatcher_group_fallback_on_failure(monkeypatch):
             os.environ.pop("LLM_PROVIDER", None)
 
 
+def test_agentic_dispatcher_group_stall_guard(monkeypatch):
+    """Verify that if group structured_output returns a valid but empty assignments list while work is pending, the stall-guard fills it using Heuristic."""
+    from strands import Agent
+    from elevatorsim.policy.schemas import GroupDispatchDecision
+    
+    # Force structured_output to return a valid but empty assignment
+    def mock_structured_output(*args, **kwargs):
+        return GroupDispatchDecision(assignments=[], reasoning="Simulated empty but valid assignments")
+    
+    monkeypatch.setattr(Agent, "structured_output", mock_structured_output)
+
+    # Setup simulation
+    building = Building(num_floors=5)
+    cars = [Car("C1", 0), Car("C2", 0)]
+    dispatcher = DispatcherAgent()
+    metrics = MetricsCollector()
+    
+    # Bypass ensure_model by manually setting dispatcher.model to a dummy value
+    dispatcher.model = "dummy"
+    
+    # Disable mock mode for this test, and set provider to gemma to bypass key checks
+    os.environ["MOCK_GEMINI"] = "false"
+    old_provider = os.environ.get("LLM_PROVIDER")
+    os.environ["LLM_PROVIDER"] = "gemma"
+    
+    # We also need to monkeypatch the Agent __call__ to do nothing (since it calls the model)
+    monkeypatch.setattr(Agent, "__call__", lambda *args, **kwargs: None)
+
+    try:
+        sim = Simulation(
+            building=building,
+            car=cars[0],
+            dispatcher=dispatcher,
+            metrics_collector=metrics,
+            verbose=True,
+            extra_cars=cars[1:]
+        )
+        
+        # 1. Test case 1: Idle car has onboard passengers
+        p_onboard = Passenger("P1", source_floor=0, target_floor=3, spawn_time=0)
+        cars[0].board(p_onboard)
+        assert cars[0].passenger_count == 1
+        
+        # Call dispatch_group
+        assignments = dispatcher.dispatch_group(sim)
+        
+        # Verify the stall-guard filled C1's target floor because C1 has onboard passengers
+        assert assignments is not None
+        assert "C1" in assignments
+        assert assignments["C1"] == 3  # LOOK target is passenger target floor 3
+        
+        # Clear onboard passenger
+        cars[0].passengers.clear()
+        
+        # 2. Test case 2: Outstanding hall calls exist
+        p_hall = Passenger("P2", source_floor=2, target_floor=4, spawn_time=0)
+        building.add_passenger(p_hall)
+        
+        # Call dispatch_group again
+        assignments = dispatcher.dispatch_group(sim)
+        
+        # Verify the stall-guard filled C1 or C2's target to pick up the hall call
+        assert assignments is not None
+        assert len(assignments) > 0
+        
+    finally:
+        os.environ["MOCK_GEMINI"] = "true"
+        if old_provider is not None:
+            os.environ["LLM_PROVIDER"] = old_provider
+        else:
+            os.environ.pop("LLM_PROVIDER", None)
+
+
+

@@ -309,6 +309,24 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
                 if a.car_id in idle_ids and a.car_id not in assignments:
                     assignments[a.car_id] = self._clamp(a.target_floor, num_floors)
 
+            # Deterministic stall-guard: never leave an idle car with work to do unassigned,
+            # regardless of what the model emitted (empty/partial assignments are schema-valid).
+            has_calls = simulation.building.has_pending_calls()
+            unassigned = [c for c in idle_cars
+                          if c.car_id not in assignments
+                          and (c.passenger_count > 0 or has_calls)]
+            if unassigned:
+                from elevatorsim.policy.heuristic import GroupHeuristicDispatcher
+                heur = GroupHeuristicDispatcher().dispatch_group(simulation)
+                filled = []
+                for c in unassigned:
+                    t = heur.get(c.car_id)
+                    if t is not None:
+                        assignments[c.car_id] = t
+                        filled.append(c.car_id)
+                if filled and getattr(simulation, "verbose", False):
+                    print(f"[AGENTIC GUARD] filled stalled idle car(s) {filled} from LOOK heuristic")
+
             if getattr(simulation, "verbose", False):
                 print(
                     f"\n[AGENTIC GROUP DECISION] Assignments: {assignments} | "

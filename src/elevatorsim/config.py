@@ -38,7 +38,7 @@ def seed_rng(seed: int) -> None:
 
 def get_llm_provider() -> str:
     """Retrieve the current LLM provider name (gemma, gemini, or mock)."""
-    return LLM_PROVIDER
+    return os.getenv("LLM_PROVIDER", "gemini").lower()
 
 
 def get_gemini_api_key() -> str | None:
