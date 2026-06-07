@@ -17,6 +17,16 @@ htmlcov/
 
 # Local configuration
 .env
+.claude/settings.local.json
+
+# Agent skills: commit portable skill content (.agents/skills) + lockfile,
+# but ignore the machine-local symlinks the skills CLI regenerates.
+.claude/skills/
+
+# Visual-iteration / Playwright artifacts
+.playwright-mcp/
+*-desktop.png
+*-mobile.png
 
 # System files
 .DS_Store
