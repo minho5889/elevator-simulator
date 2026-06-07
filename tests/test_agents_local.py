@@ -9,7 +9,7 @@ from elevatorsim.core.passenger import Passenger
 from elevatorsim.core.metrics import MetricsCollector
 from elevatorsim.core.simulation import Simulation
 from elevatorsim.policy.agentic import DispatcherAgent
-from elevatorsim.config import OLLAMA_HOST, LLM_PROVIDER
+from elevatorsim.config import OLLAMA_HOST, get_llm_provider
 
 
 def is_ollama_ready() -> bool:
@@ -24,7 +24,7 @@ def is_ollama_ready() -> bool:
 
 # Skip all tests in this file if LLM_PROVIDER is not gemma or Ollama server is not running
 pytestmark = pytest.mark.skipif(
-    LLM_PROVIDER != "gemma" or not is_ollama_ready(),
+    get_llm_provider() != "gemma" or not is_ollama_ready(),
     reason="Ollama server not running or LLM_PROVIDER is not 'gemma'"
 )
 
