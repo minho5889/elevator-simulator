@@ -40,10 +40,11 @@ export default function SettingsModal({
           >
             <option value="gemini">Google Gemini (Cloud)</option>
             <option value="gemma">Ollama / Gemma 4 (Local)</option>
+            <option value="mock">Mock Provider (Offline LOOK)</option>
           </select>
         </div>
 
-        {llmProvider === 'gemini' ? (
+        {llmProvider === 'gemini' && (
           <div className="flex flex-col gap-2 mb-4">
             <label className="text-xs text-slate-300 font-semibold flex items-center gap-1">
               <Key className="w-3.5 h-3.5" />
@@ -57,7 +58,9 @@ export default function SettingsModal({
               className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none text-white placeholder-slate-600 focus:border-cyan-500"
             />
           </div>
-        ) : (
+        )}
+
+        {llmProvider === 'gemma' && (
           <>
             <div className="flex flex-col gap-2 mb-4">
               <label className="text-xs text-slate-300 font-semibold">
@@ -84,6 +87,12 @@ export default function SettingsModal({
               />
             </div>
           </>
+        )}
+
+        {llmProvider === 'mock' && (
+          <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-400 mb-4 leading-relaxed">
+            Mock provider runs the deterministic <strong>LOOK heuristic</strong> baseline offline, simulating agentic state updates and tool calling without external LLM API dependencies.
+          </div>
         )}
 
         {keyCheckResult && llmProvider === 'gemini' && (

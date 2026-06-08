@@ -227,3 +227,40 @@ def test_api_simulate_gemma_provider_offline(monkeypatch):
             os.environ["GEMINI_API_KEY"] = old_key
 
 
+def test_dispatcher_agent_concurrency_isolation():
+    """Verify that DispatcherAgent instances are fully isolated and do not mutate environment variables."""
+    import os
+    from elevatorsim.policy.agentic import DispatcherAgent
+    from elevatorsim.config import get_llm_provider
+
+    # Clear environment variables to verify fallbacks work and don't collide
+    old_provider = os.environ.get("LLM_PROVIDER")
+    os.environ.pop("LLM_PROVIDER", None)
+
+    try:
+        agent_a = DispatcherAgent(
+            provider="gemma",
+            ollama_host="http://host-a:11434",
+            ollama_model_id="model-a"
+        )
+        agent_b = DispatcherAgent(
+            provider="mock"
+        )
+
+        assert agent_a.provider == "gemma"
+        assert agent_a.ollama_host == "http://host-a:11434"
+        assert agent_a.ollama_model_id == "model-a"
+        assert agent_b.provider == "mock"
+
+        # Check mock mode checks don't interfere
+        assert agent_a._is_mock_mode() is False
+        assert agent_b._is_mock_mode() is True
+
+        # Environment remains unmutated
+        assert "LLM_PROVIDER" not in os.environ
+    finally:
+        if old_provider is not None:
+            os.environ["LLM_PROVIDER"] = old_provider
+
+
+

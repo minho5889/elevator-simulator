@@ -96,3 +96,21 @@ uv run python -m elevatorsim.runners.run_tier0
 * **Decision Log:** See [docs/decision-log.md](file:///Users/minholee/Projects/elevator-simulator/docs/decision-log.md) for technical choices and alternatives rejected.
 * **Strands SDK Guide:** Study [docs/learning-log.md](file:///Users/minholee/Projects/elevator-simulator/docs/learning-log.md) for a map of Agent, Tool, and Structured Output concepts in the codebase.
 * **Phase 0 Research Brief:** Read [docs/research-brief.md](file:///Users/minholee/Projects/elevator-simulator/docs/research-brief.md) for live Gemini 3.5 Flash specifications.
+
+---
+
+## 6. Web Dashboard, API & Concurrency-Safe Routing
+
+The web app launches a FastAPI server (`src/elevatorsim/web/server.py`) and a React dashboard (`src/elevatorsim/web/frontend/`). 
+
+### Concurrency-Safe Provider Overrides
+To support multi-user environments and parallel sessions, LLM configurations are scoped entirely to the individual request or WebSocket connection. The backend instantiates `DispatcherAgent` with client-provided parameters:
+- `llm_provider`: Specifies the LLM engine to use (`gemini`, `gemma`, or `mock`).
+- `api_key`: Optional client-side Google Gemini key override.
+- `ollama_host`: Optional client-side Ollama server URL.
+- `ollama_model_id`: Optional client-side Ollama model ID.
+
+These parameters are threaded directly to the `DispatcherAgent` and model factories, avoiding global process environment modifications and guaranteeing complete concurrency safety.
+
+### Deterministic Stall-Guard
+To safeguard against empty or incomplete model generations (especially with smaller local models like Gemma 4), the agentic dispatcher implements a **Deterministic Stall-Guard**. If `structured_output` succeeds but returns an empty list or leaves a car idle that has onboard passengers or outstanding hall calls, the stall-guard intercepts and assigns the car a destination using the LOOK heuristic. This prevents passenger delivery stalls and guarantees forward progress.

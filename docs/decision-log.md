@@ -145,4 +145,21 @@ This log documents key architectural decisions made during the design and develo
   * **Mac Native (Cask vs Formula):** Must use native macOS Ollama (via cask or ollama.com), not the standard brew formula (which lacks the `llama-server` backend and causes runtime crashes).
   * **No Docker on Mac:** Containerizing Ollama on macOS is rejected. Docker Desktop's Linux VM has no access to Mac Metal GPU acceleration, causing it to run on CPU-only which makes inference painfully slow (taking minutes instead of seconds).
 
+---
+
+## Decision 13: Concurrency-Safe LLM Parameter Threading & Deterministic Stall-Guard
+
+* **Context:**
+  * The backend web server needs to handle multiple client sessions or concurrent simulation requests with different LLM configurations (Gemini, Gemma, or Mock) without letting them interfere with each other.
+  * The agentic policy dispatcher can intermittently generate empty assignments or fail structured Turn schema validation (especially with smaller local models like Gemma 4).
+* **Proposed Option:**
+  * Eliminate global environment modifications (`override_llm_config`) in the FastAPI web server. Thread the requested LLM configuration parameters (`provider`, `api_key`, `ollama_host`, `ollama_model_id`) directly to `get_model()`, `DispatcherAgent` constructor, and update methods.
+  * Implement a deterministic fallback (Stall-Guard) in `DispatcherAgent.dispatch_group` that assigns destinations using the LOOK heuristic if the LLM produces valid but empty decisions for cars carrying passengers or when hall calls are outstanding.
+* **Alternative Rejected:**
+  * Mutating `os.environ` on each request using global locks (causes execution bottlenecks and doesn't solve WebSocket streaming overlaps).
+  * Leaving empty structured outputs unmitigated (causes cars to stall permanently mid-run).
+* **Rationale for Choice:**
+  * **Thread-Safety:** Passing parameters directly to class instances and factories ensures complete memory isolation across concurrent tasks.
+  * **Robustness:** The deterministic stall-guard guarantees forward progress of the elevator cars, preventing prompt/reasoning failures from causing permanent passenger delivery stalls.
+
 

@@ -39,8 +39,18 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
     (group) dispatch.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        provider: str | None = None,
+        api_key: str | None = None,
+        ollama_host: str | None = None,
+        ollama_model_id: str | None = None,
+    ) -> None:
         """Initialize the dispatcher agent policy."""
+        self.provider = provider
+        self.api_key = api_key
+        self.ollama_host = ollama_host
+        self.ollama_model_id = ollama_model_id
         self.model = None
 
     # ------------------------------------------------------------------
@@ -49,7 +59,10 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
 
     def _is_mock_mode(self) -> bool:
         """Check if mock mode is active (via env variable or dummy key)."""
-        api_key = get_gemini_api_key()
+        provider = self.provider or get_llm_provider()
+        if provider == "mock":
+            return True
+        api_key = self.api_key or get_gemini_api_key()
         return (
             os.getenv("MOCK_GEMINI") == "true"
             or api_key == "mock"
@@ -59,19 +72,26 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
         """Lazily construct the Gemini or Ollama model, requiring API key for gemini."""
         if self._is_mock_mode():
             return
-        if get_llm_provider() == "gemini":
-            api_key = get_gemini_api_key()
+        provider = self.provider or get_llm_provider()
+        if provider == "gemini":
+            api_key = self.api_key or get_gemini_api_key()
             if not api_key:
                 raise ValueError(
                     "GEMINI_API_KEY is not set in environment or .env file. "
                     "The agentic policy cannot run without an API key."
                 )
         if self.model is None:
-            self.model = get_model()
+            self.model = get_model(
+                provider=self.provider,
+                api_key=self.api_key,
+                ollama_host=self.ollama_host,
+                ollama_model_id=self.ollama_model_id,
+            )
 
     def _rate_limit(self, simulation: Any, note: str) -> None:
         """Pause to stay under Google AI Studio free-tier rate limits."""
-        if self._is_mock_mode() or get_llm_provider() == "gemma":
+        provider = self.provider or get_llm_provider()
+        if self._is_mock_mode() or provider == "gemma":
             return
         if getattr(simulation, "verbose", False):
             print(f"[RATE LIMITING] Waiting {RATE_LIMIT_SECONDS}s {note}...")
@@ -152,15 +172,22 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
             for attempt in range(1, max_attempts + 1):
                 current_agent = agent
                 if attempt > 1:
-                    if get_llm_provider() == "gemma":
-                        temp_model = get_model(temperature=0.3)
+                    provider = self.provider or get_llm_provider()
+                    if provider == "gemma":
+                        temp_model = get_model(
+                            temperature=0.3,
+                            provider=self.provider,
+                            api_key=self.api_key,
+                            ollama_host=self.ollama_host,
+                            ollama_model_id=self.ollama_model_id,
+                        )
                         current_agent = Agent(
                             model=temp_model,
                             tools=[get_elevator_state, get_floor_calls],
                             system_prompt=system_prompt,
                         )
                         current_agent.messages = list(agent.messages)
-                    elif get_llm_provider() == "gemini":
+                    elif provider == "gemini":
                         if getattr(simulation, "verbose", False):
                             print("[RATE LIMITING] Waiting 5s before structured decision retry...")
                         time.sleep(5)
@@ -282,15 +309,22 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
             for attempt in range(1, max_attempts + 1):
                 current_agent = agent
                 if attempt > 1:
-                    if get_llm_provider() == "gemma":
-                        temp_model = get_model(temperature=0.3)
+                    provider = self.provider or get_llm_provider()
+                    if provider == "gemma":
+                        temp_model = get_model(
+                            temperature=0.3,
+                            provider=self.provider,
+                            api_key=self.api_key,
+                            ollama_host=self.ollama_host,
+                            ollama_model_id=self.ollama_model_id,
+                        )
                         current_agent = Agent(
                             model=temp_model,
                             tools=[get_all_cars_state, get_floor_calls],
                             system_prompt=system_prompt,
                         )
                         current_agent.messages = list(agent.messages)
-                    elif get_llm_provider() == "gemini":
+                    elif provider == "gemini":
                         if getattr(simulation, "verbose", False):
                             print("[RATE LIMITING] Waiting 5s before structured group decision retry...")
                         time.sleep(5)

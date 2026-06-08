@@ -49,13 +49,13 @@ def get_gemini_api_key() -> str | None:
     return key
 
 
-def get_gemini_model() -> GeminiModel:
+def get_gemini_model(api_key: str | None = None) -> GeminiModel:
     """
     Factory to construct the GeminiModel wrapper.
     Removes temperature/top_p (deprecated) and configures thinking_level.
     """
-    api_key = get_gemini_api_key()
-    if not api_key:
+    effective_key = api_key or get_gemini_api_key()
+    if not effective_key:
         raise ValueError(
             "GEMINI_API_KEY is not configured in environment or .env file. "
             "Please check .env.example for instructions."
@@ -64,7 +64,7 @@ def get_gemini_model() -> GeminiModel:
     # Note: no temperature/top_p/top_k are passed here (deprecated for 3.5-flash)
     return GeminiModel(
         client_args={
-            "api_key": api_key,
+            "api_key": effective_key,
         },
         model_id=DEFAULT_MODEL_ID,
         params={
@@ -75,21 +75,29 @@ def get_gemini_model() -> GeminiModel:
     )
 
 
-def get_model(temperature: float = 0.0) -> GeminiModel | OllamaModel | None:
+def get_model(
+    temperature: float = 0.0,
+    provider: str | None = None,
+    api_key: str | None = None,
+    ollama_host: str | None = None,
+    ollama_model_id: str | None = None,
+) -> GeminiModel | OllamaModel | None:
     """
     Factory to construct the appropriate model wrapper (Gemini or Ollama/Gemma).
     """
-    provider = get_llm_provider()
-    if provider == "gemma":
+    effective_provider = provider.lower() if provider else get_llm_provider()
+    if effective_provider == "gemma":
+        host = ollama_host or OLLAMA_HOST
+        model_id = ollama_model_id or OLLAMA_MODEL_ID
         return OllamaModel(
-            host=OLLAMA_HOST,
-            model_id=OLLAMA_MODEL_ID,
+            host=host,
+            model_id=model_id,
             temperature=temperature,
             options={"seed": DEFAULT_SEED},
             additional_args={"think": False}  # Gemma 4 reasons by default and intermittently swallows structured output
         )
-    elif provider == "gemini":
-        return get_gemini_model()
+    elif effective_provider == "gemini":
+        return get_gemini_model(api_key=api_key)
     else:
         # For mock or other providers
         return None
