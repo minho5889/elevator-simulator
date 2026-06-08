@@ -177,7 +177,8 @@ This log documents key architectural decisions made during the design and develo
 * **Rationale for Choice:**
   * **Physical Fidelity:** Float position widening is lightweight, fully deterministic, backward-compatible, and integrates seamlessly with the existing fixed-tick loop.
   * **Benchmark Metrics:** Energy tracking introduces a realistic, multi-dimensional metric for evaluating dispatcher efficiency (trade-off between passenger wait times and energy costs).
-  * **Pragmatic Orchestration:** The hierarchical prompting strategy achieves zone partitioning and swarm routing in a single LLM call. This completely avoids rate-limit/quota failures, bypasses multi-turn inference latency, and operates reliably on both cloud Gemini and local Gemma 4 without degradation.
+  * **Pragmatic Orchestration:** The hierarchical prompting strategy achieves zone partitioning and swarm routing in a single LLM call. This completely avoids rate-limit/quota failures and bypasses multi-turn orchestration latency. However, local Gemma 4 is compute-bound (~25-40s per call) and suffers from high inference latency under the full verbose prompt (which also increases empty structured-output retries); therefore, a shortened group-dispatch prompt and tool observation flow is used for the local gemma provider to keep local agentic runs practical.
+
 
 
 

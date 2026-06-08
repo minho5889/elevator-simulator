@@ -97,6 +97,45 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
             print(f"[RATE LIMITING] Waiting {RATE_LIMIT_SECONDS}s {note}...")
         time.sleep(RATE_LIMIT_SECONDS)
 
+    def _get_group_system_prompt(self, provider: str, num_cars: int, num_floors: int) -> str:
+        """Get the group dispatch system prompt depending on the model provider."""
+        top = num_floors - 1
+        if provider == "gemma":
+            return (
+                f"You are a group elevator controller managing a bank of {num_cars} elevators "
+                f"in a {num_floors}-floor building (floors 0 to {top}).\n\n"
+                "Guidelines:\n"
+                "- Call tools to gather the status of all cars and floor calls.\n"
+                "- Assign target floors to idle cars to clear calls and deliver passengers efficiently.\n"
+                "- If an idle car has passengers onboard, you MUST assign it a target floor "
+                "corresponding to one of its onboard passengers' destinations.\n"
+                "- Ground your decisions strictly in the simulation state returned by the tools."
+            )
+        else:
+            return (
+                f"You are a hierarchical group elevator controller managing a bank of "
+                f"{num_cars} elevators in a {num_floors}-floor building "
+                f"(floors 0 to {top}). You operate in two coordinated layers:\n\n"
+                "1. HIGH-LEVEL BUILDING MANAGER LAYER:\n"
+                "   - Analyze outstanding calls and passenger destinations.\n"
+                "   - Partition the building floors into logical priority zones for the idle cars "
+                "     (e.g., Low-Rise vs. High-Rise zones) to prevent multiple cars clustering on the same floor.\n"
+                "2. LOW-LEVEL SWARM ELEVATOR AGENTS:\n"
+                "   - For each idle car, dispatch it to the optimal target floor within its assigned zone "
+                "     to clear calls and deliver passengers efficiently.\n\n"
+                "Guidelines:\n"
+                "- First, act as the HIGH-LEVEL BUILDING MANAGER by calling tools to gather status. "
+                "  Define the zone partitioning in your initial analysis message.\n"
+                "- Next, act as the LOW-LEVEL SWARM ELEVATOR AGENTS to determine the final target floor (0-top) "
+                "  for each idle car based on its zone and passengers.\n"
+                "- IMPORTANT: If an idle car has passengers onboard, you MUST assign it a target floor "
+                "  corresponding to one of its onboard passengers' destinations so they can be delivered. "
+                "  Do not leave such a car without a target floor assignment.\n"
+                "- Ground your decisions strictly in the simulation state returned by the tools.\n"
+                "- You only have access to read-only state-gathering tools. Do NOT attempt to call "
+                "  any action or modification tools; your decision must be returned solely via structured output."
+            )
+
     # ------------------------------------------------------------------
     # Single-car dispatch (legacy Tier 0/1 protocol)
     # ------------------------------------------------------------------
@@ -269,29 +308,8 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
             return {}
 
         idle_list = ", ".join(sorted(idle_ids))
-        system_prompt = (
-            f"You are a hierarchical group elevator controller managing a bank of "
-            f"{len(simulation.cars)} elevators in a {num_floors}-floor building "
-            f"(floors 0 to {top}). You operate in two coordinated layers:\n\n"
-            "1. HIGH-LEVEL BUILDING MANAGER LAYER:\n"
-            "   - Analyze outstanding calls and passenger destinations.\n"
-            "   - Partition the building floors into logical priority zones for the idle cars "
-            "     (e.g., Low-Rise vs. High-Rise zones) to prevent multiple cars clustering on the same floor.\n"
-            "2. LOW-LEVEL SWARM ELEVATOR AGENTS:\n"
-            "   - For each idle car, dispatch it to the optimal target floor within its assigned zone "
-            "     to clear calls and deliver passengers efficiently.\n\n"
-            "Guidelines:\n"
-            "- First, act as the HIGH-LEVEL BUILDING MANAGER by calling tools to gather status. "
-            "  Define the zone partitioning in your initial analysis message.\n"
-            "- Next, act as the LOW-LEVEL SWARM ELEVATOR AGENTS to determine the final target floor (0-top) "
-            "  for each idle car based on its zone and passengers.\n"
-            "- IMPORTANT: If an idle car has passengers onboard, you MUST assign it a target floor "
-            "  corresponding to one of its onboard passengers' destinations so they can be delivered. "
-            "  Do not leave such a car without a target floor assignment.\n"
-            "- Ground your decisions strictly in the simulation state returned by the tools.\n"
-            "- You only have access to read-only state-gathering tools. Do NOT attempt to call "
-            "  any action or modification tools; your decision must be returned solely via structured output."
-        )
+        provider = self.provider or get_llm_provider()
+        system_prompt = self._get_group_system_prompt(provider, len(simulation.cars), num_floors)
 
         agent = Agent(
             model=self.model,
@@ -302,10 +320,14 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
         set_active_simulation(simulation)
         try:
             self._rate_limit(simulation, "to avoid Google AI Studio Free Tier 429 quota limits")
-            agent(
-                "Observe the state of every car and all floor queues using tools. "
-                "Analyze which calls are outstanding and which cars are idle."
-            )
+            if provider == "gemma":
+                agent("Use tools to observe state. Respond with 'State gathered.' and do not write any analysis.")
+            else:
+                agent(
+                    "Observe the state of every car and all floor queues using tools. "
+                    "Analyze which calls are outstanding and which cars are idle."
+                )
+
 
             self._rate_limit(simulation, "before structured group decision call")
             max_attempts = 2
