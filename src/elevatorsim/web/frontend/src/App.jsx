@@ -21,6 +21,9 @@ export default function App() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [keyChecking, setKeyChecking] = useState(false);
   const [keyCheckResult, setKeyCheckResult] = useState(null);
+  const [llmProvider, setLlmProvider] = useState(() => localStorage.getItem('llm_provider') || 'gemini');
+  const [ollamaHost, setOllamaHost] = useState(() => localStorage.getItem('ollama_host') || 'http://localhost:11434');
+  const [ollamaModelId, setOllamaModelId] = useState(() => localStorage.getItem('ollama_model_id') || 'gemma4:e4b');
 
   // Preset scenarios database
   const [presets, setPresets] = useState({});
@@ -163,7 +166,10 @@ export default function App() {
           profile: profile,
           max_ticks: Number(maxTicks),
           api_key: userApiKey || null,
-          run_agentic: true
+          run_agentic: true,
+          llm_provider: llmProvider,
+          ollama_host: ollamaHost,
+          ollama_model_id: ollamaModelId
         }
       }));
     };
@@ -278,8 +284,22 @@ export default function App() {
 
   const handleSaveSettings = () => {
     localStorage.setItem('gemini_api_key', userApiKey);
+    localStorage.setItem('llm_provider', llmProvider);
+    localStorage.setItem('ollama_host', ollamaHost);
+    localStorage.setItem('ollama_model_id', ollamaModelId);
     setShowSettingsModal(false);
     setKeyCheckResult(null);
+
+    // If mid-simulation, send config update to WebSocket
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'config',
+        api_key: userApiKey || null,
+        llm_provider: llmProvider,
+        ollama_host: ollamaHost,
+        ollama_model_id: ollamaModelId
+      }));
+    }
   };
 
   const runCustomSimulation = () => {
@@ -758,6 +778,12 @@ export default function App() {
           keyCheckResult={keyCheckResult}
           handleTestKey={handleTestKey}
           handleSaveSettings={handleSaveSettings}
+          llmProvider={llmProvider}
+          setLlmProvider={setLlmProvider}
+          ollamaHost={ollamaHost}
+          setOllamaHost={setOllamaHost}
+          ollamaModelId={ollamaModelId}
+          setOllamaModelId={setOllamaModelId}
         />
       )}
 

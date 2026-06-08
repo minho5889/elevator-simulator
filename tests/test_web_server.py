@@ -141,3 +141,82 @@ def test_websocket_simulate():
         assert call_ev is not None
         assert call_ev["floor"] == 3
 
+
+def test_api_simulate_mock_provider():
+    """Verify simulate endpoint runs successfully using the agentic mock provider without requiring GEMINI_API_KEY."""
+    payload = {
+        "seed": 42,
+        "num_floors": 5,
+        "arrival_rate": 0.2,
+        "profile": "UNIFORM",
+        "max_ticks": 10,
+        "run_agentic": True,
+        "llm_provider": "mock"
+    }
+    
+    # Enable mock Gemini environment variable to bypass key validation
+    import os
+    old_mock = os.environ.get("MOCK_GEMINI")
+    os.environ["MOCK_GEMINI"] = "true"
+    
+    try:
+        response = client.post("/api/simulate", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        
+        assert "heuristic" in data
+        assert "agentic" in data
+        assert data["agentic"] is not None
+        assert data["agentic_error"] is None
+        assert "events" in data["agentic"]
+    finally:
+        if old_mock is not None:
+            os.environ["MOCK_GEMINI"] = old_mock
+        else:
+            os.environ.pop("MOCK_GEMINI", None)
+
+
+def test_api_simulate_gemma_provider_offline(monkeypatch):
+    """Verify simulate endpoint successfully bypasses API key checks and executes simulation using gemma provider (mocked structured output)."""
+    from strands import Agent
+    from elevatorsim.policy.schemas import DispatchDecision
+    
+    # Mock structured output to return a constant decision
+    monkeypatch.setattr(
+        Agent, 
+        "structured_output", 
+        lambda *args, **kwargs: DispatchDecision(target_floor=0, reasoning="Simulated local model decision")
+    )
+    # Monkeypatch Agent __call__ to do nothing (since it calls the model)
+    monkeypatch.setattr(Agent, "__call__", lambda *args, **kwargs: None)
+    
+    # Save environment state
+    import os
+    old_key = os.environ.get("GEMINI_API_KEY")
+    os.environ.pop("GEMINI_API_KEY", None)  # Ensure no key exists
+    
+    payload = {
+        "seed": 42,
+        "num_floors": 5,
+        "arrival_rate": 0.2,
+        "profile": "UNIFORM",
+        "max_ticks": 5,
+        "run_agentic": True,
+        "llm_provider": "gemma",
+        "ollama_host": "http://dummy-host:11434",
+        "ollama_model_id": "dummy-model"
+    }
+    
+    try:
+        response = client.post("/api/simulate", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        
+        assert data["agentic"] is not None
+        assert data["agentic_error"] is None
+        assert len(data["agentic"]["events"]) > 0
+    finally:
+        if old_key is not None:
+            os.environ["GEMINI_API_KEY"] = old_key
+
+

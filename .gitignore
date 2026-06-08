@@ -29,5 +29,8 @@ htmlcov/
 *-mobile.*
 baseline-*.*
 
+# Agent scratch / diagnostic scripts (not part of the project)
+scratch/
+
 # System files
 .DS_Store

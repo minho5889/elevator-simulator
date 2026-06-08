@@ -63,23 +63,70 @@ class SimulationRequest(BaseModel):
     max_ticks: int = Field(default=50, description="Maximum simulation duration")
     api_key: Optional[str] = Field(default=None, description="Optional Gemini API key")
     run_agentic: bool = Field(default=True, description="Whether to run the Agentic simulation")
+    llm_provider: Optional[str] = Field(default=None, description="Optional LLM Provider override (gemini, gemma, mock)")
+    ollama_host: Optional[str] = Field(default=None, description="Optional Ollama server URL")
+    ollama_model_id: Optional[str] = Field(default=None, description="Optional Ollama model ID")
+
 
 class KeyCheckRequest(BaseModel):
     api_key: str = Field(..., description="API Key to test")
 
+
 @contextmanager
-def override_env_key(key: Optional[str]):
-    """Temporarily override GEMINI_API_KEY environment variable."""
+def override_llm_config(
+    provider: Optional[str] = None,
+    key: Optional[str] = None,
+    host: Optional[str] = None,
+    model: Optional[str] = None,
+):
+    """Temporarily override LLM config environment variables."""
+    old_provider = os.environ.get("LLM_PROVIDER")
     old_key = os.environ.get("GEMINI_API_KEY")
+    old_host = os.environ.get("OLLAMA_HOST")
+    old_model = os.environ.get("OLLAMA_MODEL_ID")
+
+    if provider is not None:
+        os.environ["LLM_PROVIDER"] = provider.strip().lower()
     if key is not None:
         os.environ["GEMINI_API_KEY"] = key.strip()
+    if host is not None:
+        os.environ["OLLAMA_HOST"] = host.strip()
+    if model is not None:
+        os.environ["OLLAMA_MODEL_ID"] = model.strip()
+
     try:
         yield
     finally:
+        # Restore provider
+        if old_provider is not None:
+            os.environ["LLM_PROVIDER"] = old_provider
+        else:
+            os.environ.pop("LLM_PROVIDER", None)
+
+        # Restore key
         if old_key is not None:
             os.environ["GEMINI_API_KEY"] = old_key
         else:
             os.environ.pop("GEMINI_API_KEY", None)
+
+        # Restore host
+        if old_host is not None:
+            os.environ["OLLAMA_HOST"] = old_host
+        else:
+            os.environ.pop("OLLAMA_HOST", None)
+
+        # Restore model
+        if old_model is not None:
+            os.environ["OLLAMA_MODEL_ID"] = old_model
+        else:
+            os.environ.pop("OLLAMA_MODEL_ID", None)
+
+
+@contextmanager
+def override_env_key(key: Optional[str]):
+    """Compatibility wrapper for overriding GEMINI_API_KEY."""
+    with override_llm_config(key=key):
+        yield
 
 def serialize_event(event: Event) -> Dict[str, Any]:
     """Serialize a simulation event object into a JSON-compatible dictionary."""
@@ -211,14 +258,24 @@ def run_simulation(req: SimulationRequest):
     agentic_error = None
     
     if req.run_agentic:
-        # Determine the API key to use
+        from elevatorsim.config import get_llm_provider
         effective_key = req.api_key or get_gemini_api_key()
         
-        if not effective_key:
+        # Temporary override to resolve current provider
+        with override_llm_config(provider=req.llm_provider, key=effective_key, host=req.ollama_host, model=req.ollama_model_id):
+            req_provider = get_llm_provider()
+            effective_key = os.environ.get("GEMINI_API_KEY")
+            
+        if req_provider == "gemini" and not effective_key:
             agentic_error = "GEMINI_API_KEY is not configured on the server, and no key was provided in the UI settings."
             logger.warning("Skipping agentic run: no API key.")
         else:
-            with override_env_key(effective_key):
+            with override_llm_config(
+                provider=req.llm_provider,
+                key=effective_key,
+                host=req.ollama_host,
+                model=req.ollama_model_id,
+            ):
                 try:
                     agentic_dispatcher = DispatcherAgent()
                     agentic_result = run_single_simulation(
@@ -304,6 +361,9 @@ async def websocket_simulate(websocket: WebSocket):
     api_key: Optional[str] = None
     run_agentic = True
     passenger_counter = 0
+    llm_provider: Optional[str] = None
+    ollama_host: Optional[str] = None
+    ollama_model_id: Optional[str] = None
     
     # Lists to collect events for the current tick
     look_tick_events = []
@@ -331,6 +391,9 @@ async def websocket_simulate(websocket: WebSocket):
                 run_agentic = config.get("run_agentic", True)
                 api_key = config.get("api_key")
                 max_ticks = config.get("max_ticks", 50)
+                llm_provider = config.get("llm_provider")
+                ollama_host = config.get("ollama_host")
+                ollama_model_id = config.get("ollama_model_id")
                 
                 ws_rng = random.Random(seed)
                 traffic_generator = TrafficGenerator(num_floors=num_floors, arrival_rate=arrival_rate, profile=profile)
@@ -439,12 +502,28 @@ async def websocket_simulate(websocket: WebSocket):
                     if is_thinking:
                         await websocket.send_json({"type": "thinking"})
                         
+                    from elevatorsim.config import get_llm_provider
                     effective_key = api_key or get_gemini_api_key()
-                    if not effective_key:
+                    
+                    with override_llm_config(
+                        provider=llm_provider,
+                        key=effective_key,
+                        host=ollama_host,
+                        model=ollama_model_id,
+                    ):
+                        req_provider = get_llm_provider()
+                        effective_key = os.environ.get("GEMINI_API_KEY")
+                        
+                    if req_provider == "gemini" and not effective_key:
                         agentic_error = "GEMINI_API_KEY is not configured on the server, and no key was provided in the UI settings."
                         logger.warning("Skipping agentic step: no API key.")
                     else:
-                        with override_env_key(effective_key):
+                        with override_llm_config(
+                            provider=llm_provider,
+                            key=effective_key,
+                            host=ollama_host,
+                            model=ollama_model_id,
+                        ):
                             try:
                                 await asyncio.to_thread(gemini_sim.step)
                             except Exception as e:
@@ -510,6 +589,9 @@ async def websocket_simulate(websocket: WebSocket):
                 # Handle config updates mid-simulation (e.g. toggling agentic mode)
                 run_agentic = message.get("run_agentic", run_agentic)
                 api_key = message.get("api_key", api_key)
+                llm_provider = message.get("llm_provider", llm_provider)
+                ollama_host = message.get("ollama_host", ollama_host)
+                ollama_model_id = message.get("ollama_model_id", ollama_model_id)
                 
                 if not run_agentic:
                     gemini_sim = None

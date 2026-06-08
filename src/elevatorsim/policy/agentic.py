@@ -151,14 +151,19 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
             decision = None
             for attempt in range(1, max_attempts + 1):
                 current_agent = agent
-                if attempt > 1 and get_llm_provider() == "gemma":
-                    temp_model = get_model(temperature=0.3)
-                    current_agent = Agent(
-                        model=temp_model,
-                        tools=[get_elevator_state, get_floor_calls],
-                        system_prompt=system_prompt,
-                    )
-                    current_agent.messages = list(agent.messages)
+                if attempt > 1:
+                    if get_llm_provider() == "gemma":
+                        temp_model = get_model(temperature=0.3)
+                        current_agent = Agent(
+                            model=temp_model,
+                            tools=[get_elevator_state, get_floor_calls],
+                            system_prompt=system_prompt,
+                        )
+                        current_agent.messages = list(agent.messages)
+                    elif get_llm_provider() == "gemini":
+                        if getattr(simulation, "verbose", False):
+                            print("[RATE LIMITING] Waiting 5s before structured decision retry...")
+                        time.sleep(5)
 
                 try:
                     decision = current_agent.structured_output(
@@ -276,14 +281,19 @@ class DispatcherAgent(Dispatcher, GroupDispatcher):
             decision = None
             for attempt in range(1, max_attempts + 1):
                 current_agent = agent
-                if attempt > 1 and get_llm_provider() == "gemma":
-                    temp_model = get_model(temperature=0.3)
-                    current_agent = Agent(
-                        model=temp_model,
-                        tools=[get_all_cars_state, get_floor_calls],
-                        system_prompt=system_prompt,
-                    )
-                    current_agent.messages = list(agent.messages)
+                if attempt > 1:
+                    if get_llm_provider() == "gemma":
+                        temp_model = get_model(temperature=0.3)
+                        current_agent = Agent(
+                            model=temp_model,
+                            tools=[get_all_cars_state, get_floor_calls],
+                            system_prompt=system_prompt,
+                        )
+                        current_agent.messages = list(agent.messages)
+                    elif get_llm_provider() == "gemini":
+                        if getattr(simulation, "verbose", False):
+                            print("[RATE LIMITING] Waiting 5s before structured group decision retry...")
+                        time.sleep(5)
 
                 try:
                     decision = current_agent.structured_output(
