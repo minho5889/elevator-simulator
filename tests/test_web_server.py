@@ -179,14 +179,21 @@ def test_api_simulate_mock_provider():
 def test_api_simulate_gemma_provider_offline(monkeypatch):
     """Verify simulate endpoint successfully bypasses API key checks and executes simulation using gemma provider (mocked structured output)."""
     from strands import Agent
-    from elevatorsim.policy.schemas import DispatchDecision
-    
-    # Mock structured output to return a constant decision
-    monkeypatch.setattr(
-        Agent, 
-        "structured_output", 
-        lambda *args, **kwargs: DispatchDecision(target_floor=0, reasoning="Simulated local model decision")
-    )
+    from elevatorsim.policy.schemas import DispatchDecision, GroupDispatchDecision, CarAssignment
+
+    # Mock structured output to return whichever schema the dispatcher actually
+    # requests. The web path routes even single-car sims through dispatch_group
+    # (DispatcherAgent exposes dispatch_group), so it asks for GroupDispatchDecision,
+    # not the single-car DispatchDecision.
+    def _fake_structured_output(self, output_model, *args, **kwargs):
+        if output_model is GroupDispatchDecision:
+            return GroupDispatchDecision(
+                assignments=[CarAssignment(car_id="C1", target_floor=0)],
+                reasoning="Simulated local model decision",
+            )
+        return DispatchDecision(target_floor=0, reasoning="Simulated local model decision")
+
+    monkeypatch.setattr(Agent, "structured_output", _fake_structured_output)
     # Monkeypatch Agent __call__ to do nothing (since it calls the model)
     monkeypatch.setattr(Agent, "__call__", lambda *args, **kwargs: None)
     
