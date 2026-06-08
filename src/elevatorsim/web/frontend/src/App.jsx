@@ -35,6 +35,20 @@ export default function App() {
   const [arrivalRate, setArrivalRate] = useState(0.2);
   const [maxTicks, setMaxTicks] = useState(50);
   const [numCars, setNumCars] = useState(1);
+  const [carSpeeds, setCarSpeeds] = useState([1.0]);
+
+  // Expand/truncate carSpeeds array dynamically as numCars changes
+  useEffect(() => {
+    setCarSpeeds(prev => {
+      if (prev.length === numCars) return prev;
+      if (prev.length < numCars) {
+        const added = Array(numCars - prev.length).fill(1.0);
+        return [...prev, ...added];
+      } else {
+        return prev.slice(0, numCars);
+      }
+    });
+  }, [numCars]);
   const [profile, setProfile] = useState('UNIFORM');
   
   // App status states
@@ -162,6 +176,7 @@ export default function App() {
           seed: Number(seed),
           num_floors: Number(floors),
           num_cars: Number(numCars),
+          car_speeds: carSpeeds,
           arrival_rate: Number(arrivalRate),
           profile: profile,
           max_ticks: Number(maxTicks),
@@ -791,6 +806,8 @@ export default function App() {
           setOllamaHost={setOllamaHost}
           ollamaModelId={ollamaModelId}
           setOllamaModelId={setOllamaModelId}
+          carSpeeds={carSpeeds}
+          setCarSpeeds={setCarSpeeds}
         />
       )}
 

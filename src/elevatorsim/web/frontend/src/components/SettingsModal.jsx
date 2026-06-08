@@ -14,7 +14,9 @@ export default function SettingsModal({
   ollamaHost,
   setOllamaHost,
   ollamaModelId,
-  setOllamaModelId
+  setOllamaModelId,
+  carSpeeds = [1.0],
+  setCarSpeeds
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
@@ -95,8 +97,42 @@ export default function SettingsModal({
           </div>
         )}
 
+        {/* Custom Car Speeds Configuration */}
+        {carSpeeds && carSpeeds.length > 0 && (
+          <div className="border-t border-slate-800/80 pt-4 mt-4">
+            <label className="text-xs text-slate-300 font-semibold mb-2 block">
+              Elevator Car Speeds (floors/tick)
+            </label>
+            <div className="flex flex-col gap-3">
+              {carSpeeds.map((speed, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <span className="text-xs font-mono font-semibold text-slate-400 w-12">
+                    Car C{idx + 1}
+                  </span>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="3.0"
+                    step="0.5"
+                    value={speed}
+                    onChange={(e) => {
+                      const nextSpeeds = [...carSpeeds];
+                      nextSpeeds[idx] = parseFloat(e.target.value);
+                      setCarSpeeds(nextSpeeds);
+                    }}
+                    className="flex-1 accent-cyan-500 bg-slate-950 h-1.5 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <span className="text-xs font-mono font-bold text-white w-8 text-right">
+                    {speed.toFixed(1)}x
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {keyCheckResult && llmProvider === 'gemini' && (
-          <div className={`p-3 rounded-lg text-xs mb-4 ${keyCheckResult.success ? 'bg-emerald-950/30 border border-emerald-500/30 text-emerald-400' : 'bg-red-950/30 border border-red-500/30 text-red-400'}`}>
+          <div className={`p-3 rounded-lg text-xs mb-4 mt-4 ${keyCheckResult.success ? 'bg-emerald-950/30 border border-emerald-500/30 text-emerald-400' : 'bg-red-950/30 border border-red-500/30 text-red-400'}`}>
             {keyCheckResult.message}
           </div>
         )}

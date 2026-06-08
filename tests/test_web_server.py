@@ -263,4 +263,61 @@ def test_dispatcher_agent_concurrency_isolation():
             os.environ["LLM_PROVIDER"] = old_provider
 
 
+def test_api_simulate_custom_car_speeds():
+    """Verify simulate endpoint runs successfully when passed a custom car_speeds list."""
+    payload = {
+        "seed": 42,
+        "num_floors": 5,
+        "num_cars": 3,
+        "car_speeds": [2.5, 1.0, 0.5],
+        "arrival_rate": 0.2,
+        "profile": "UNIFORM",
+        "max_ticks": 20,
+        "run_agentic": False
+    }
+    
+    response = client.post("/api/simulate", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert "heuristic" in data
+    assert data["heuristic"] is not None
+    assert "events" in data["heuristic"]
+    
+    events = data["heuristic"]["events"]
+    car_ids = {ev.get("car_id") for ev in events if "car_id" in ev}
+    assert "C1" in car_ids
+    assert "C2" in car_ids
+    assert "C3" in car_ids
+
+
+def test_websocket_simulate_custom_car_speeds():
+    """Verify stateful WebSocket connection handles custom speeds config initialization."""
+    with client.websocket_connect("/api/ws/simulate") as websocket:
+        websocket.send_json({
+            "type": "init",
+            "config": {
+                "seed": 42,
+                "num_floors": 5,
+                "num_cars": 3,
+                "car_speeds": [2.0, 1.5, 0.5],
+                "arrival_rate": 0.0,
+                "profile": "UNIFORM",
+                "max_ticks": 10,
+                "run_agentic": False
+            }
+        })
+        
+        init_data = websocket.receive_json()
+        assert init_data["type"] == "state"
+        assert init_data["current_tick"] == 0
+        assert init_data["num_cars"] == 3
+        
+        websocket.send_json({"type": "step"})
+        step_data = websocket.receive_json()
+        assert step_data["type"] == "state"
+        assert step_data["current_tick"] == 1
+
+
+
 
