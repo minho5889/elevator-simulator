@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, RotateCcw, ChevronRight, Settings, 
-  Key, AlertCircle, HelpCircle, Activity, Award, Navigation, UserCheck, Clock
+  Key, AlertCircle, HelpCircle, Activity, Award, Navigation, UserCheck, Clock, Zap
 } from 'lucide-react';
-import { reconstructState, getAverageWaitTimeAtTick } from './utils/simulationHelper';
+import { reconstructState, getAverageWaitTimeAtTick, getEnergyAtTick } from './utils/simulationHelper';
 import ElevatorShaft from './components/ElevatorShaft';
 import ConsoleTerminal from './components/ConsoleTerminal';
 import MetricComparisonCard from './components/MetricComparisonCard';
@@ -712,7 +712,7 @@ export default function App() {
             </div>
 
             {/* Numerical metrics cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <MetricComparisonCard 
                 title="Average Wait Time" 
                 hVal={heuristicData ? getAverageWaitTimeAtTick(heuristicData.events, currentTick) : 0}
@@ -740,6 +740,13 @@ export default function App() {
                 aVal={agenticData && !agenticError ? aState.rawEvents.filter(e => e.event_type === "PassengerSpawned").length : null}
                 unit="spawned"
                 icon={<Activity className="w-4 h-4 text-purple-400" />}
+              />
+              <MetricComparisonCard 
+                title="Total Energy Consumed" 
+                hVal={heuristicData ? getEnergyAtTick(heuristicData, currentTick) : 0}
+                aVal={agenticData && !agenticError ? getEnergyAtTick(agenticData, currentTick) : null}
+                unit="kWh"
+                icon={<Zap className="w-4 h-4 text-cyan-400" />}
               />
             </div>
 

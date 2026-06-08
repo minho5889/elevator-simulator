@@ -16,6 +16,8 @@ class MetricsCollector:
         """Reset all metric counters."""
         self.total_ticks = 0
         self.total_car_moves = 0
+        self.total_energy = 0.0
+        self.car_was_moving: Dict[str, bool] = {}
         
         # Track passenger objects by ID
         # Maps passenger_id -> Passenger object
@@ -33,6 +35,8 @@ class MetricsCollector:
         Args:
             event: The domain event that occurred
         """
+        from elevatorsim.core.events import DoorOpened
+
         self.total_ticks = max(self.total_ticks, event.time)
 
         if isinstance(event, PassengerSpawned):
@@ -52,6 +56,21 @@ class MetricsCollector:
 
         elif isinstance(event, CarMoved):
             self.total_car_moves += 1
+            # Calculate energy usage:
+            # 1. Floor travel energy: 1.0 unit per floor traveled
+            distance = abs(event.to_floor - event.from_floor)
+            self.total_energy += distance * 1.0
+            
+            # 2. Motor start energy: 5.0 units when transitioning from rest
+            if not self.car_was_moving.get(event.car_id, False):
+                self.total_energy += 5.0
+            
+            self.car_was_moving[event.car_id] = True
+
+        elif isinstance(event, DoorOpened):
+            # 3. Door cycle energy: 0.5 units when doors open
+            self.total_energy += 0.5
+            self.car_was_moving[event.car_id] = False
 
     def get_summary(self) -> Dict[str, Any]:
         """
@@ -79,6 +98,7 @@ class MetricsCollector:
             "avg_wait_time": round(avg_wait, 2),
             "avg_transit_time": round(avg_transit, 2),
             "avg_total_time": round(avg_total, 2),
+            "total_energy": round(self.total_energy, 2),
         }
 
     def print_summary(self, title: str = "Simulation Metrics Summary") -> None:
@@ -91,6 +111,7 @@ class MetricsCollector:
         print(f" Total Car Moves:       {summary['total_car_moves']}")
         print(f" Passengers Spawned:    {summary['passengers_spawned']}")
         print(f" Passengers Completed:  {summary['passengers_completed']}")
+        print(f" Total Energy Consumed: {summary['total_energy']}")
         print("---------------------------------------")
         print(f" Avg Wait Time (ticks):  {summary['avg_wait_time']}")
         print(f" Avg Transit (ticks):   {summary['avg_transit_time']}")

@@ -152,13 +152,13 @@ class Simulation:
 
         # 3. Move car if doors are closed and it has a target
         if car.door_state == "CLOSED" and car.target_floor is not None:
-            from_floor = car.current_floor
+            from_pos = car.current_position
             moved = car.move_tick()
             if moved:
-                self.emit(CarMoved(self.current_time, car.car_id, from_floor, car.current_floor))
+                self.emit(CarMoved(self.current_time, car.car_id, from_pos, car.current_position))
 
                 # Check if arrived
-                if car.current_floor == car.target_floor:
+                if car.current_position == float(car.target_floor):
                     self.emit(CarArrived(self.current_time, car.car_id, car.current_floor))
                     car.open_doors()
                     self.emit(DoorOpened(self.current_time, car.car_id, car.current_floor))

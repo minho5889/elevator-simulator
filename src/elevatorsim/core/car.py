@@ -11,7 +11,8 @@ class Car:
         self,
         car_id: str,
         initial_floor: int = 0,
-        capacity: int = 8
+        capacity: int = 8,
+        speed: float = 1.0,
     ) -> None:
         """
         Initialize the elevator car.
@@ -20,15 +21,27 @@ class Car:
             car_id: Unique identifier for the car
             initial_floor: Starting floor
             capacity: Maximum passenger capacity
+            speed: Physical speed in floors per tick
         """
         self.car_id = car_id
-        self.current_floor = initial_floor
+        self.current_position = float(initial_floor)
         self.target_floor: int | None = None
         self.direction = 0  # 1: UP, -1: DOWN, 0: STANDBY/IDLE
         self.door_state = "CLOSED"  # "CLOSED", "OPEN"
         self.door_timer = 0  # Ticks remaining for door open state
         self.passengers: List[Passenger] = []
         self.capacity = capacity
+        self.speed = float(speed)
+
+    @property
+    def current_floor(self) -> int:
+        """The nearest integer floor index."""
+        return round(self.current_position)
+
+    @current_floor.setter
+    def current_floor(self, floor: int) -> None:
+        """Set the current floor by updating physical position."""
+        self.current_position = float(floor)
 
     @property
     def passenger_count(self) -> int:
@@ -48,9 +61,9 @@ class Car:
             floor: Target destination floor
         """
         self.target_floor = floor
-        if floor > self.current_floor:
+        if floor > self.current_position:
             self.direction = 1
-        elif floor < self.current_floor:
+        elif floor < self.current_position:
             self.direction = -1
         else:
             self.direction = 0
@@ -91,7 +104,7 @@ class Car:
 
     def move_tick(self) -> bool:
         """
-        Move the car one floor towards the target floor if doors are closed.
+        Move the car towards the target floor if doors are closed.
 
         Returns:
             True if the car moved, False otherwise.
@@ -99,13 +112,23 @@ class Car:
         if self.door_state == "OPEN" or self.target_floor is None:
             return False
 
-        if self.current_floor < self.target_floor:
-            self.current_floor += 1
-            self.direction = 1
+        if self.current_position < self.target_floor:
+            new_pos = self.current_position + self.speed
+            if new_pos >= self.target_floor:
+                self.current_position = float(self.target_floor)
+                self.direction = 0
+            else:
+                self.current_position = new_pos
+                self.direction = 1
             return True
-        elif self.current_floor > self.target_floor:
-            self.current_floor -= 1
-            self.direction = -1
+        elif self.current_position > self.target_floor:
+            new_pos = self.current_position - self.speed
+            if new_pos <= self.target_floor:
+                self.current_position = float(self.target_floor)
+                self.direction = 0
+            else:
+                self.current_position = new_pos
+                self.direction = -1
             return True
         
         return False
@@ -135,6 +158,6 @@ class Car:
 
     def __repr__(self) -> str:
         return (
-            f"Car(id={self.car_id}, floor={self.current_floor}, target={self.target_floor}, "
+            f"Car(id={self.car_id}, floor={self.current_position:.2f}, target={self.target_floor}, "
             f"dir={self.direction}, door={self.door_state}, passengers={len(self.passengers)})"
         )

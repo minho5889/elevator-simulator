@@ -111,11 +111,11 @@ class CarDispatched(Event):
 class CarMoved(Event):
     """Event indicating the car traveled from one floor to another."""
 
-    def __init__(self, time: int, car_id: str, from_floor: int, to_floor: int) -> None:
+    def __init__(self, time: int, car_id: str, from_floor: float, to_floor: float) -> None:
         super().__init__(time)
         self.car_id = car_id
-        self.from_floor = from_floor
-        self.to_floor = to_floor
+        self.from_floor = float(from_floor)
+        self.to_floor = float(to_floor)
 
     def __str__(self) -> str:
-        return f"[{self.time:03d} T] CAR_MOVED: Car {self.car_id} traveled {self.from_floor} -> {self.to_floor}"
+        return f"[{self.time:03d} T] CAR_MOVED: Car {self.car_id} traveled {self.from_floor:.2f} -> {self.to_floor:.2f}"

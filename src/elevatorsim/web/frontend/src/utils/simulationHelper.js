@@ -130,3 +130,31 @@ export function getAverageWaitTimeAtTick(events, tick) {
   }
   return parseFloat((totalWait / passengers.length).toFixed(1));
 }
+
+/**
+ * Calculate total energy consumption of all cars up to tick t
+ */
+export function getEnergyAtTick(events, tick) {
+  if (!events || !events.events) return 0;
+  let energy = 0;
+  const carWasMoving = {};
+
+  for (const ev of events.events) {
+    if (ev.time > tick) break;
+    const carId = ev.car_id || 'C1';
+
+    if (ev.event_type === "CarMoved") {
+      const distance = Math.abs(ev.to_floor - ev.from_floor);
+      energy += distance * 1.0;
+      if (!carWasMoving[carId]) {
+        energy += 5.0; // Motor start
+      }
+      carWasMoving[carId] = true;
+    } else if (ev.event_type === "DoorOpened") {
+      energy += 0.5; // Door cycle
+      carWasMoving[carId] = false;
+    }
+  }
+  return parseFloat(energy.toFixed(1));
+}
+

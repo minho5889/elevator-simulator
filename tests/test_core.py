@@ -275,3 +275,54 @@ def test_legacy_dispatcher_with_multi_car():
 
     summary = metrics.get_summary()
     assert summary["passengers_completed"] == 2
+
+
+def test_variable_car_speeds():
+    """Verify that cars with different speeds move at the correct rate."""
+    from elevatorsim.core.car import Car
+
+    # Standard car (speed = 1.0)
+    car_standard = Car("C1", initial_floor=0, speed=1.0)
+    car_standard.set_target(4)
+    # Move standard car 2 ticks
+    car_standard.move_tick()
+    car_standard.move_tick()
+    assert car_standard.current_position == 2.0
+    assert car_standard.current_floor == 2
+
+    # Express car (speed = 2.0)
+    car_express = Car("C2", initial_floor=0, speed=2.0)
+    car_express.set_target(4)
+    # Move express car 2 ticks
+    car_express.move_tick()
+    car_express.move_tick()
+    assert car_express.current_position == 4.0
+    assert car_express.current_floor == 4
+    # Destination reached, direction should reset
+    assert car_express.direction == 0
+
+
+def test_energy_metrics_tracking():
+    """Verify that MetricsCollector aggregates energy usage correctly."""
+    from elevatorsim.core.events import CarMoved, DoorOpened
+    metrics = MetricsCollector()
+
+    # 1. Standard moves
+    metrics.on_event(CarMoved(time=1, car_id="C1", from_floor=0.0, to_floor=1.0))
+    # Energy: Travel = 1.0, Motor Start = 5.0 (since C1 was not moving)
+    assert metrics.get_summary()["total_energy"] == 6.0
+
+    metrics.on_event(CarMoved(time=2, car_id="C1", from_floor=1.0, to_floor=2.0))
+    # Energy: Travel = 1.0 (cumulative = 7.0), no motor start since already moving
+    assert metrics.get_summary()["total_energy"] == 7.0
+
+    # 2. Door opening stops the car
+    metrics.on_event(DoorOpened(time=3, car_id="C1", floor=2))
+    # Energy: Door cycle = 0.5 (cumulative = 7.5)
+    assert metrics.get_summary()["total_energy"] == 7.5
+
+    # 3. Moving again triggers another motor start
+    metrics.on_event(CarMoved(time=4, car_id="C1", from_floor=2.0, to_floor=3.0))
+    # Energy: Travel = 1.0, Motor Start = 5.0 (cumulative = 13.5)
+    assert metrics.get_summary()["total_energy"] == 13.5
+
