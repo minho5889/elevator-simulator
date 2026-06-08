@@ -68,10 +68,10 @@ flowchart TD
 
 ### Multi-Car Tick Engine (Tier 2)
 The simulation engine runs a **per-car fixed-tick loop** where each `step()` call advances all cars in the bank by one tick:
-* Each car moves exactly 1 floor per tick (independent of other cars).
+* Each car moves towards its target floor based on its configured speed (e.g., standard local cars at 1.0 floor/tick vs. express cars at 2.0 floors/tick) using float current position tracking.
 * Doors stay open for exactly 2 ticks per car.
 * All cars are stepped sequentially within a single `step()` call.
-* **No discrete-event framework:** the engine is plain fixed-tick Python with no SimPy/discrete-event dependency. This keeps the loop transparent and, crucially, aligned with the per-tick WebSocket streaming protocol and recorded preset caches. Variable travel speeds (Tier 3) are planned as fractional position accumulation within this same loop rather than an event-driven rewrite — see `docs/decision-log.md` Decision 2.
+* **No discrete-event framework:** the engine is plain fixed-tick Python with no SimPy/discrete-event dependency. This keeps the loop transparent and, crucially, aligned with the per-tick WebSocket streaming protocol and recorded preset caches. Variable travel speeds are modeled via fractional position accumulation within this same loop, avoiding an event-driven rewrite — see `docs/decision-log.md` Decision 2.
 * **Group dispatch:** After all cars are stepped, the dispatcher is queried once per tick. `GroupDispatcher.dispatch_group()` returns assignments for all idle cars simultaneously.
 
 ### Stochastic Traffic Generation (Tier 1)
@@ -134,7 +134,12 @@ The project is structured to easily scale across tiers:
 * **Tier 0 (Walking Skeleton) [Completed]:** 1 car, 5 floors, scripted passengers, LOOK vs. Agentic Dispatcher.
 * **Tier 1 (Stochastic Traffic) [Completed]:** Introduce stochastic passenger spawns using the seeded `RNG` and custom traffic profiles (`UNIFORM`, `UP_PEAK`, `DOWN_PEAK`).
 * **Tier 2 (Multi-Car Bank) [Completed]:** Upgraded to an elevator bank (1-6 configurable cars) with `GroupDispatcher` protocol and nearest-idle-car LOOK group scheduling. Both the heuristic and agentic dispatchers implement group dispatch. Frontend renders multi-shaft car tracks. Full backward compatibility with single-car mode and preset caches.
-* **Tier 3 (Skyscraper) [Partially Completed]:** Expose a standard FastMCP server (`src/elevatorsim/mcp/server.py`) for remote configuration, time-stepping, status query, passenger spawning, and performance telemetry comparison. Planned: Swarm and Workflow orchestration across hierarchical building controllers; variable car speeds modeled via fractional position accumulation in the existing tick loop (no SimPy).
+* **Tier 3 (Skyscraper) [Completed]:** Expose a standard FastMCP server (`src/elevatorsim/mcp/server.py`) for remote configuration, time-stepping, status query, passenger spawning, and performance telemetry comparison. Features implemented:
+  * **Variable Car Speeds**: Modeled via fractional position accumulation (`current_position` tracked as float) in the existing tick loop.
+  * **Energy Telemetry**: Tracks cumulative energy consumption (motor starts, travel per floor, door cycles) for LOOK vs. Agentic performance comparisons.
+  * **Hierarchical Prompting Strategy**: Re-engineered the group dispatch prompt so that a single LLM call acts first as a high-level building manager (analyzing calls, partitioning zones) and then as low-level swarm elevator agents (dispatching individual cars within zones).
+  * **Dashboard Integrations**: Visualizes fractional positions, real-time energy usage, and supports custom LLM config overrides.
+  * *Roadmap Note:* True architectural swarm orchestration (where separate zone-manager and car-agent processes execute distinct async workflows) was not implemented due to local model latency constraints and Gemini Free Tier API rate limits; the single-call hierarchical prompting strategy was chosen as a pragmatic and performant alternative.
 
 ---
 

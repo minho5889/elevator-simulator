@@ -162,4 +162,22 @@ This log documents key architectural decisions made during the design and develo
   * **Thread-Safety:** Passing parameters directly to class instances and factories ensures complete memory isolation across concurrent tasks.
   * **Robustness:** The deterministic stall-guard guarantees forward progress of the elevator cars, preventing prompt/reasoning failures from causing permanent passenger delivery stalls.
 
+---
+
+## Decision 14: Variable Speed, Energy Tracking, and Hierarchical Prompting Strategy (Tier 3)
+
+* **Context:** Implementing the Tier 3 features: modeling physical differences between elevator cars (variable speeds), introducing efficiency benchmarks (energy consumption), and scaling agent-based routing to multi-car banks (hierarchical coordination) under local-model and rate-limiting constraints.
+* **Proposed Option:**
+  * **Variable Speed & Float Positions:** Widened `current_position` and the `CarMoved` event parameters (`from_floor`, `to_floor`) from integers to floating-point numbers. Added a `@current_floor` property mapping to the rounded float position, keeping passenger boardings/deboardings aligned to integer floors while allowing cars to traverse at different speeds (e.g. standard local cars at 1.0 vs. express cars at 2.0 floors/tick).
+  * **Energy Consumption Metrics:** Track motor starts (5.0 energy units), floor-to-floor travel (1.0 energy unit/floor), and door cycles (0.5 energy units) inside `metrics.py` to compare LOOK vs. Agentic energy efficiency.
+  * **Hierarchical Prompting:** Reframe the multi-car group routing problem inside `dispatch_group` using a single-call, dual-layer system prompt (High-Level Building Manager partitioning zones, and Low-Level Swarm Agents dispatching cars within zones) rather than running multiple separate agent workflows or processes.
+* **Alternative Rejected:**
+  * **Discrete-Event (SimPy) Transition:** Rewriting the time engine in SimPy to model varying speeds. SimPy would break simple per-tick rendering on the WebSockets dashboard and compromise static preset playback caching.
+  * **Architectural Swarm/Workflow Orchestration (Multi-Agent Swarm):** Launching independent manager and car-agent workflows as separate processes/threads. This was rejected because the local Gemma 4 model suffers from significant inference latency (approx. 25-30s per structured generation), and Cloud Gemini Free Tier has severe RPM rate limits. Orchestrating multiple separate LLM turns per simulation tick would cause extreme delays or immediate rate limit/quota failures.
+* **Rationale for Choice:**
+  * **Physical Fidelity:** Float position widening is lightweight, fully deterministic, backward-compatible, and integrates seamlessly with the existing fixed-tick loop.
+  * **Benchmark Metrics:** Energy tracking introduces a realistic, multi-dimensional metric for evaluating dispatcher efficiency (trade-off between passenger wait times and energy costs).
+  * **Pragmatic Orchestration:** The hierarchical prompting strategy achieves zone partitioning and swarm routing in a single LLM call. This completely avoids rate-limit/quota failures, bypasses multi-turn inference latency, and operates reliably on both cloud Gemini and local Gemma 4 without degradation.
+
+
 
