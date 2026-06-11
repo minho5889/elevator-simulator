@@ -136,7 +136,7 @@ export const STRINGS = {
     'settings.keyMissing': 'Please enter a key.',
 
     'spawn.title': 'Add a passenger',
-    'spawn.desc': 'Someone is on floor {floor}. Where do they want to go?',
+    'spawn.desc': 'Someone is at {floor}F. Where do they want to go?',
     'spawn.cancel': 'Cancel',
 
     'footer.left': 'A friendly elevator race — with a real AI inside.',

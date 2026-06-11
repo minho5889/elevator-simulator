@@ -39,6 +39,11 @@
   --grass: #3BBE6E;
   --grass-text: #1E7A43;
 
+  /* Building cross-section: sand walls, darker roof slab, floor slabs */
+  --building: #E7D7B8;
+  --building-deep: #C4AC7E;
+  --slab: #EADBBC;
+
   --error-text: #C23434;
   --error-fill: #FFE7E7;
   --warn-text: #8F5A07;

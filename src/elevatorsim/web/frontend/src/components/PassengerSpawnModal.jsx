@@ -29,7 +29,7 @@ export default function PassengerSpawnModal({ activeSpawnFloor, floors, spawnPas
                 onClick={() => spawnPassenger(activeSpawnFloor, idx)}
                 className="btn-chunky h-11 font-extrabold text-base text-[var(--ink)] hover:bg-[var(--sun)] hover:border-[var(--sun-deep)]"
               >
-                {idx + 1}
+                {idx + 1}F
               </button>
             );
           })}
