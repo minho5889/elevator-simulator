@@ -17,7 +17,7 @@ export default function PassengerSpawnModal({ activeSpawnFloor, floors, spawnPas
           {t('spawn.title')}
         </h3>
         <p className="text-xs font-semibold text-[var(--ink-2)] mb-4">
-          {t('spawn.desc', { floor: activeSpawnFloor })}
+          {t('spawn.desc', { floor: activeSpawnFloor + 1 })}
         </p>
 
         <div className="grid grid-cols-5 gap-2.5 my-4">
@@ -29,7 +29,7 @@ export default function PassengerSpawnModal({ activeSpawnFloor, floors, spawnPas
                 onClick={() => spawnPassenger(activeSpawnFloor, idx)}
                 className="btn-chunky h-11 font-extrabold text-base text-[var(--ink)] hover:bg-[var(--sun)] hover:border-[var(--sun-deep)]"
               >
-                {idx}
+                {idx + 1}
               </button>
             );
           })}
