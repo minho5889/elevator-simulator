@@ -13,6 +13,7 @@ class Car:
         initial_floor: int = 0,
         capacity: int = 8,
         speed: float = 1.0,
+        max_weight_kg: float | None = None,
     ) -> None:
         """
         Initialize the elevator car.
@@ -20,8 +21,9 @@ class Car:
         Args:
             car_id: Unique identifier for the car
             initial_floor: Starting floor
-            capacity: Maximum passenger capacity
+            capacity: Maximum passenger headcount
             speed: Physical speed in floors per tick
+            max_weight_kg: Total weight limit; None disables the weight check
         """
         self.car_id = car_id
         self.current_position = float(initial_floor)
@@ -32,6 +34,7 @@ class Car:
         self.passengers: List[Passenger] = []
         self.capacity = capacity
         self.speed = float(speed)
+        self.max_weight_kg = max_weight_kg
 
     @property
     def current_floor(self) -> int:
@@ -49,9 +52,23 @@ class Car:
         return len(self.passengers)
 
     @property
+    def current_weight_kg(self) -> float:
+        """Combined weight of everyone on board."""
+        return sum(getattr(p, "weight_kg", 0) for p in self.passengers)
+
+    @property
     def is_full(self) -> bool:
-        """Check if the elevator is at capacity."""
+        """Check if the elevator is at headcount capacity."""
         return len(self.passengers) >= self.capacity
+
+    def can_board(self, passenger: Passenger) -> bool:
+        """Check headcount and weight limits for one more passenger."""
+        if len(self.passengers) >= self.capacity:
+            return False
+        if self.max_weight_kg is not None:
+            if self.current_weight_kg + getattr(passenger, "weight_kg", 0) > self.max_weight_kg:
+                return False
+        return True
 
     def set_target(self, floor: int) -> None:
         """
@@ -135,12 +152,12 @@ class Car:
 
     def board(self, passenger: Passenger) -> bool:
         """
-        Board a passenger if capacity allows.
+        Board a passenger if headcount and weight limits allow.
 
         Args:
             passenger: Passenger to board
         """
-        if len(self.passengers) < self.capacity:
+        if self.can_board(passenger):
             self.passengers.append(passenger)
             return True
         return False

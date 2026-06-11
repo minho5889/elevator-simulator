@@ -28,11 +28,21 @@ export function reconstructState(events, tick, numCars = 1) {
 
   if (!events || events.length === 0) return state;
 
-  // Gather passenger targets on spawn
+  // Character weights, mirroring the backend table (passenger.py); used as a
+  // fallback for cached runs recorded before weights existed
+  const CHARACTER_WEIGHTS_KG = [30, 32, 38, 60, 75, 52, 68, 62, 80, 58, 65, 90];
+  const fallbackWeight = (id) => {
+    const n = parseInt(String(id).replace(/\D/g, ''), 10);
+    return CHARACTER_WEIGHTS_KG[(Number.isNaN(n) ? 0 : n) % CHARACTER_WEIGHTS_KG.length];
+  };
+
+  // Gather passenger targets and weights on spawn
   const passengerTargets = {};
+  const passengerWeights = {};
   for (const ev of events) {
     if (ev.event_type === "PassengerSpawned") {
       passengerTargets[ev.passenger_id] = ev.target;
+      passengerWeights[ev.passenger_id] = ev.weight_kg ?? fallbackWeight(ev.passenger_id);
     }
   }
 
@@ -49,14 +59,18 @@ export function reconstructState(events, tick, numCars = 1) {
     switch (ev.event_type) {
       case "PassengerSpawned": {
         const { passenger_id, source, target } = ev;
-        state.floorQueues[source].push({ id: passenger_id, target });
+        state.floorQueues[source].push({ id: passenger_id, target, weight: passengerWeights[passenger_id] });
         break;
       }
       case "PassengerBoarded": {
         const { passenger_id, floor } = ev;
         state.floorQueues[floor] = state.floorQueues[floor].filter(p => p.id !== passenger_id);
         if (state.cars[carId]) {
-          state.cars[carId].onboardPassengers.push({ id: passenger_id, target: passengerTargets[passenger_id] || 0 });
+          state.cars[carId].onboardPassengers.push({
+            id: passenger_id,
+            target: passengerTargets[passenger_id] || 0,
+            weight: passengerWeights[passenger_id],
+          });
         }
         break;
       }
@@ -88,6 +102,13 @@ export function reconstructState(events, tick, numCars = 1) {
       case "DoorClosed": {
         if (state.cars[carId]) {
           state.cars[carId].doorState = "CLOSED";
+        }
+        break;
+      }
+      case "BoardingRefused": {
+        if (state.cars[carId]) {
+          // Flag stays on briefly so the FULL badge shows at the dramatic moment
+          state.cars[carId].refusedRecently = (tick - ev.time) <= 2;
         }
         break;
       }

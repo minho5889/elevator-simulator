@@ -11,14 +11,17 @@ class Event:
 class PassengerSpawned(Event):
     """Event indicating a passenger arrived at a floor and registered a call."""
 
-    def __init__(self, time: int, passenger_id: str, source: int, target: int) -> None:
+    def __init__(self, time: int, passenger_id: str, source: int, target: int,
+                 weight_kg: float | None = None) -> None:
         super().__init__(time)
         self.passenger_id = passenger_id
         self.source = source
         self.target = target
+        self.weight_kg = weight_kg
 
     def __str__(self) -> str:
-        return f"[{self.time:03d} T] PASSENGER_SPAWNED: {self.passenger_id} requests {self.source}->{self.target}"
+        weight = f" ({self.weight_kg:.0f}kg)" if self.weight_kg else ""
+        return f"[{self.time:03d} T] PASSENGER_SPAWNED: {self.passenger_id}{weight} requests {self.source}->{self.target}"
 
 
 class CallRegistered(Event):
@@ -82,6 +85,26 @@ class PassengerDeboarded(Event):
 
     def __str__(self) -> str:
         return f"[{self.time:03d} T] PASSENGER_DEBOARDED: {self.passenger_id} exited car {self.car_id} at floor {self.floor}"
+
+
+class BoardingRefused(Event):
+    """Event indicating a passenger could not board because the car hit its weight limit."""
+
+    def __init__(self, time: int, passenger_id: str, car_id: str, floor: int,
+                 passenger_weight: float, car_weight: float, max_weight: float) -> None:
+        super().__init__(time)
+        self.passenger_id = passenger_id
+        self.car_id = car_id
+        self.floor = floor
+        self.passenger_weight = passenger_weight
+        self.car_weight = car_weight
+        self.max_weight = max_weight
+
+    def __str__(self) -> str:
+        return (
+            f"[{self.time:03d} T] BOARDING_REFUSED: {self.passenger_id} ({self.passenger_weight:.0f}kg) "
+            f"can't board car {self.car_id} at floor {self.floor} — load {self.car_weight:.0f}/{self.max_weight:.0f}kg"
+        )
 
 
 class DoorClosed(Event):

@@ -25,6 +25,9 @@ from elevatorsim.core.events import Event  # noqa: E402
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("elevatorsim.web.cache_generator")
 
+# Cab weight limit for preset races: tight enough that rush hours hit it
+MAX_WEIGHT_KG = 300.0
+
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
@@ -42,7 +45,7 @@ def serialize_event(event: Event) -> dict:
 def run_simulation(dispatcher: Any, seed: int, profile: str, rate: float, max_ticks: int) -> dict:
     seed_rng(seed)
     building = Building(num_floors=5)
-    car = Car(car_id="C1", initial_floor=0)
+    car = Car(car_id="C1", initial_floor=0, max_weight_kg=MAX_WEIGHT_KG)
     metrics = MetricsCollector()
     traffic = TrafficGenerator(num_floors=5, arrival_rate=rate, profile=profile)
     
@@ -68,7 +71,7 @@ def run_mock_agentic_simulation(seed: int, profile: str, rate: float, max_ticks:
     """Generate a simulation that uses Heuristic LOOK but formats decisions with mock agent reasoning."""
     seed_rng(seed)
     building = Building(num_floors=5)
-    car = Car(car_id="C1", initial_floor=0)
+    car = Car(car_id="C1", initial_floor=0, max_weight_kg=MAX_WEIGHT_KG)
     metrics = MetricsCollector()
     traffic = TrafficGenerator(num_floors=5, arrival_rate=rate, profile=profile)
     
@@ -175,6 +178,7 @@ def generate_presets():
             "arrival_rate": config["rate"],
             "seed": 42,
             "max_ticks": config["ticks"],
+            "max_weight_kg": MAX_WEIGHT_KG,
             "heuristic": heuristic_res,
             "agentic": agentic_res
         }

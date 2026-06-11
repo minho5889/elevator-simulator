@@ -59,6 +59,7 @@ class SimulationRequest(BaseModel):
     num_floors: int = Field(default=5, description="Number of floors (5-10)")
     num_cars: int = Field(default=1, description="Number of elevator cars (1-6)")
     car_speeds: Optional[List[float]] = Field(default=None, description="Optional custom car speeds (length must equal num_cars)")
+    max_weight_kg: Optional[float] = Field(default=300.0, description="Cab weight limit in kg; null disables the limit")
     arrival_rate: float = Field(default=0.2, description="Arrival rate probability (0.0 to 1.0)")
     profile: str = Field(default="UNIFORM", description="UNIFORM, DOWN_PEAK, or UP_PEAK")
     max_ticks: int = Field(default=50, description="Maximum simulation duration")
@@ -88,11 +89,12 @@ def serialize_event(event: Event) -> Dict[str, Any]:
     return data
 
 
-def _build_car_bank(num_cars: int, car_speeds: Optional[List[float]] = None) -> List[Car]:
+def _build_car_bank(num_cars: int, car_speeds: Optional[List[float]] = None,
+                    max_weight_kg: Optional[float] = None) -> List[Car]:
     """Create a bank of elevator cars starting at floor 0."""
     if car_speeds is not None and len(car_speeds) == num_cars:
-        return [Car(car_id=f"C{i+1}", initial_floor=0, speed=car_speeds[i]) for i in range(num_cars)]
-    return [Car(car_id=f"C{i+1}", initial_floor=0) for i in range(num_cars)]
+        return [Car(car_id=f"C{i+1}", initial_floor=0, speed=car_speeds[i], max_weight_kg=max_weight_kg) for i in range(num_cars)]
+    return [Car(car_id=f"C{i+1}", initial_floor=0, max_weight_kg=max_weight_kg) for i in range(num_cars)]
 
 
 def _make_simulation(
@@ -104,10 +106,11 @@ def _make_simulation(
     traffic_generator: Optional[Any] = None,
     verbose: bool = False,
     car_speeds: Optional[List[float]] = None,
+    max_weight_kg: Optional[float] = None,
 ) -> Simulation:
     """Factory to construct a Simulation with the right car bank."""
     building = Building(num_floors=num_floors)
-    cars = _build_car_bank(num_cars, car_speeds)
+    cars = _build_car_bank(num_cars, car_speeds, max_weight_kg)
     metrics = MetricsCollector()
 
     if traffic_generator is None:
@@ -134,6 +137,7 @@ def run_single_simulation(
     max_ticks: int,
     num_cars: int = 1,
     car_speeds: Optional[List[float]] = None,
+    max_weight_kg: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Execute a simulation run and return serialized events and final metrics."""
     seed_rng(seed)
@@ -145,6 +149,7 @@ def run_single_simulation(
         arrival_rate=arrival_rate,
         profile=profile,
         car_speeds=car_speeds,
+        max_weight_kg=max_weight_kg,
     )
 
     # List to collect events
@@ -198,6 +203,7 @@ def run_simulation(req: SimulationRequest):
             max_ticks=req.max_ticks,
             num_cars=req.num_cars,
             car_speeds=req.car_speeds,
+            max_weight_kg=req.max_weight_kg,
         )
     except Exception as e:
         logger.error(f"Heuristic simulation failed: {e}")
@@ -234,6 +240,7 @@ def run_simulation(req: SimulationRequest):
                     max_ticks=req.max_ticks,
                     num_cars=req.num_cars,
                     car_speeds=req.car_speeds,
+                    max_weight_kg=req.max_weight_kg,
                 )
             except Exception as e:
                 logger.error(f"Agentic simulation failed: {e}")
@@ -344,6 +351,7 @@ async def websocket_simulate(websocket: WebSocket):
                 llm_provider = config.get("llm_provider")
                 ollama_host = config.get("ollama_host")
                 ollama_model_id = config.get("ollama_model_id")
+                max_weight_kg = config.get("max_weight_kg", 300.0)
                 
                 ws_rng = random.Random(seed)
                 traffic_generator = TrafficGenerator(num_floors=num_floors, arrival_rate=arrival_rate, profile=profile)
@@ -356,7 +364,7 @@ async def websocket_simulate(websocket: WebSocket):
                     look_dispatcher = HeuristicDispatcher()
                 
                 # Initialize LOOK simulation
-                look_cars = _build_car_bank(num_cars, car_speeds)
+                look_cars = _build_car_bank(num_cars, car_speeds, max_weight_kg)
                 look_building = Building(num_floors=num_floors)
                 look_metrics = MetricsCollector()
                 look_sim = Simulation(
@@ -375,7 +383,7 @@ async def websocket_simulate(websocket: WebSocket):
                 gemini_sim = None
                 gemini_tick_events = []
                 if run_agentic:
-                    gemini_cars = _build_car_bank(num_cars, car_speeds)
+                    gemini_cars = _build_car_bank(num_cars, car_speeds, max_weight_kg)
                     gemini_building = Building(num_floors=num_floors)
                     gemini_metrics = MetricsCollector()
                     gemini_dispatcher = DispatcherAgent(
@@ -544,7 +552,7 @@ async def websocket_simulate(websocket: WebSocket):
                     gemini_sim = None
                 elif gemini_sim is None and look_sim is not None:
                     # Dynamically instantiate Gemini if it was disabled but is now enabled
-                    gemini_cars = _build_car_bank(num_cars, car_speeds)
+                    gemini_cars = _build_car_bank(num_cars, car_speeds, max_weight_kg)
                     gemini_building = Building(num_floors=num_floors)
                     gemini_metrics = MetricsCollector()
                     gemini_dispatcher = DispatcherAgent(

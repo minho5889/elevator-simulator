@@ -37,11 +37,12 @@ def get_elevator_state() -> Dict[str, Any]:
             "passenger_id": p.passenger_id,
             "source_floor": p.source_floor,
             "target_floor": p.target_floor,
-            "spawn_time": p.spawn_time
+            "spawn_time": p.spawn_time,
+            "weight_kg": getattr(p, "weight_kg", None)
         }
         for p in car.passengers
     ]
-    
+
     return {
         "car_id": car.car_id,
         "current_floor": car.current_floor,
@@ -50,7 +51,9 @@ def get_elevator_state() -> Dict[str, Any]:
         "door_state": car.door_state,
         "passengers": passengers_info,
         "passenger_count": len(passengers_info),
-        "capacity": car.capacity
+        "capacity": car.capacity,
+        "current_weight_kg": car.current_weight_kg,
+        "max_weight_kg": car.max_weight_kg
     }
 
 
@@ -79,6 +82,9 @@ def get_all_cars_state() -> Dict[str, Any]:
             "is_idle": car.door_state == "CLOSED" and car.target_floor is None,
             "passenger_count": car.passenger_count,
             "capacity": car.capacity,
+            "current_weight_kg": car.current_weight_kg,
+            "max_weight_kg": car.max_weight_kg,
+            "remaining_weight_kg": (car.max_weight_kg - car.current_weight_kg) if car.max_weight_kg is not None else None,
             "onboard_destinations": sorted({p.target_floor for p in car.passengers}),
         })
 
@@ -111,7 +117,8 @@ def get_floor_calls() -> Dict[str, List[Dict[str, Any]]]:
                 "source_floor": p.source_floor,
                 "target_floor": p.target_floor,
                 "spawn_time": p.spawn_time,
-                "direction": "UP" if p.direction == 1 else "DOWN"
+                "direction": "UP" if p.direction == 1 else "DOWN",
+                "weight_kg": getattr(p, "weight_kg", None)
             }
             for p in waiting_list
         ]

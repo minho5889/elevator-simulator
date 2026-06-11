@@ -1,5 +1,18 @@
 # src/elevatorsim/core/passenger.py
-"""Passenger entity for tracking source, target, and timing metrics."""
+"""Passenger entity for tracking source, target, weight, and timing metrics."""
+
+# Character weight table. Index = int(digits of passenger_id) % len(table),
+# mirroring the frontend's emoji character mapping (ElevatorShaft.jsx PEOPLE)
+# so the kid you see on screen weighs like a kid.
+CHARACTER_WEIGHTS_KG = [30, 32, 38, 60, 75, 52, 68, 62, 80, 58, 65, 90]
+
+
+def default_weight_kg(passenger_id: str) -> int:
+    """Deterministic weight derived from the passenger id."""
+    digits = "".join(ch for ch in str(passenger_id) if ch.isdigit())
+    index = int(digits) if digits else 0
+    return CHARACTER_WEIGHTS_KG[index % len(CHARACTER_WEIGHTS_KG)]
+
 
 class Passenger:
     """Represents a passenger in the elevator simulation."""
@@ -9,7 +22,8 @@ class Passenger:
         passenger_id: str,
         source_floor: int,
         target_floor: int,
-        spawn_time: int
+        spawn_time: int,
+        weight_kg: int | None = None,
     ) -> None:
         """
         Initialize passenger.
@@ -19,12 +33,14 @@ class Passenger:
             source_floor: Floor where the passenger requests the elevator
             target_floor: Destination floor
             spawn_time: Simulation tick when passenger request was spawned
+            weight_kg: Body weight; defaults deterministically from the id
         """
         self.passenger_id = passenger_id
         self.source_floor = source_floor
         self.target_floor = target_floor
         self.spawn_time = spawn_time
-        
+        self.weight_kg = weight_kg if weight_kg is not None else default_weight_kg(passenger_id)
+
         # Timing metrics to be filled during simulation
         self.board_time: int | None = None
         self.arrival_time: int | None = None

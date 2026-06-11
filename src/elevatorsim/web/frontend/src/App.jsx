@@ -61,6 +61,7 @@ export default function App() {
   const [maxTicks, setMaxTicks] = useState(50);
   const [numCars, setNumCars] = useState(1);
   const [carSpeeds, setCarSpeeds] = useState([1.0]);
+  const [maxWeightKg, setMaxWeightKg] = useState(300);
 
   // Expand/truncate carSpeeds array dynamically as numCars changes
   useEffect(() => {
@@ -206,6 +207,7 @@ export default function App() {
           num_floors: Number(floors),
           num_cars: Number(numCars),
           car_speeds: carSpeeds,
+          max_weight_kg: Number(maxWeightKg),
           arrival_rate: Number(arrivalRate),
           profile: profile,
           max_ticks: Number(maxTicks),
@@ -279,6 +281,7 @@ export default function App() {
     setArrivalRate(presetObj.arrival_rate);
     setMaxTicks(presetObj.max_ticks);
     setProfile(presetObj.profile);
+    setMaxWeightKg(presetObj.max_weight_kg ?? null);
 
     setHeuristicData(presetObj.heuristic);
     setAgenticData(presetObj.agentic);
@@ -738,6 +741,7 @@ export default function App() {
               numFloors={floors}
               numCars={numCars}
               accent="robot"
+              maxWeightKg={maxWeightKg}
               onFloorClick={isInteractiveMode ? (fIdx) => setActiveSpawnFloor(fIdx) : null}
             />
             {advancedMode && <ConsoleTerminal logRef={hLogRef} logs={hState.logs} title={t('adv.logs')} />}
@@ -785,6 +789,7 @@ export default function App() {
                   numFloors={floors}
                   numCars={numCars}
                   accent="brain"
+                  maxWeightKg={maxWeightKg}
                   onFloorClick={isInteractiveMode ? (fIdx) => setActiveSpawnFloor(fIdx) : null}
                 />
                 {advancedMode && <ConsoleTerminal logRef={aLogRef} logs={aState.logs} title={t('adv.logs')} />}
@@ -836,6 +841,7 @@ export default function App() {
                 { label: t('adv.floors'), value: floors, set: setFloors, min: 5, max: 10, step: 1 },
                 { label: t('adv.cars'), value: numCars, set: setNumCars, min: 1, max: 6, step: 1 },
                 { label: t('adv.ticks'), value: maxTicks, set: setMaxTicks, min: 30, max: 100, step: 10 },
+                { label: t('adv.weight'), value: maxWeightKg ?? 300, set: setMaxWeightKg, min: 150, max: 600, step: 50 },
               ].map(({ label, value, set, min, max, step }) => (
                 <div key={label} className="flex flex-col gap-1.5">
                   <label className="text-xs font-extrabold text-[var(--ink-2)] flex justify-between">

@@ -76,6 +76,7 @@ export const STRINGS = {
     'adv.floors': 'Floors',
     'adv.cars': 'Elevator cars',
     'adv.ticks': 'Race length (turns)',
+    'adv.weight': 'Elevator weight limit (kg)',
     'adv.seed': 'Random seed',
     'adv.run': 'Run live race',
     'adv.running': 'Racing…',
@@ -107,7 +108,7 @@ export const STRINGS = {
     'how.title': 'How it works',
     'how.close': 'Got it!',
     'how.1.title': 'The game',
-    'how.1.body': 'People show up on different floors and want to go somewhere. An elevator has to pick them up and drop them off. The faster everyone gets there, the better.',
+    'how.1.body': 'People show up on different floors and want to go somewhere. An elevator has to pick them up and drop them off. The faster everyone gets there, the better. One catch: elevators have a weight limit — if the cab is too heavy, the next person has to wait for the next ride!',
     'how.2.title': 'Team Rule-Bot 🤖',
     'how.2.body': 'Rule-Bot follows one simple rule, like a wind-up toy: go up while anyone ahead needs you, then turn around and go down. It never thinks — it just follows the rule. (Real elevators mostly work this way!)',
     'how.3.title': 'Team AI Brain 🧠',
@@ -143,6 +144,7 @@ export const STRINGS = {
     'footer.right': 'Built with Strands, Gemini and Gemma',
 
     'floor.label': 'Floor {n}',
+    'shaft.full': 'FULL',
     'error.ws': 'Connection lost. Try restarting the race.',
   },
 
@@ -218,6 +220,7 @@ export const STRINGS = {
     'adv.floors': '층수',
     'adv.cars': '엘리베이터 수',
     'adv.ticks': '레이스 길이 (턴)',
+    'adv.weight': '엘리베이터 무게 제한 (kg)',
     'adv.seed': '랜덤 시드',
     'adv.run': '라이브 레이스 실행',
     'adv.running': '레이스 중…',
@@ -249,7 +252,7 @@ export const STRINGS = {
     'how.title': '게임 설명',
     'how.close': '알겠어요!',
     'how.1.title': '게임 규칙',
-    'how.1.body': '사람들이 여러 층에서 나타나 어딘가로 가고 싶어 해요. 엘리베이터가 태우고 내려줘야 해요. 모두가 빨리 도착할수록 좋아요.',
+    'how.1.body': '사람들이 여러 층에서 나타나 어딘가로 가고 싶어 해요. 엘리베이터가 태우고 내려줘야 해요. 모두가 빨리 도착할수록 좋아요. 한 가지 함정: 엘리베이터에는 무게 제한이 있어요. 너무 무거우면 다음 사람은 다음 차례를 기다려야 해요!',
     'how.2.title': '규칙 로봇 팀 🤖',
     'how.2.body': '규칙 로봇은 태엽 장난감처럼 규칙 하나만 따라요. 위에 갈 사람이 있으면 계속 올라가고, 없으면 돌아서 내려와요. 생각은 안 해요. 그냥 규칙대로! (실제 엘리베이터 대부분이 이렇게 움직여요.)',
     'how.3.title': 'AI 브레인 팀 🧠',
@@ -285,6 +288,7 @@ export const STRINGS = {
     'footer.right': 'Strands, Gemini, Gemma로 만들었어요',
 
     'floor.label': '{n}층',
+    'shaft.full': '만원',
     'error.ws': '연결이 끊겼어요. 레이스를 다시 시작해보세요.',
   },
 };

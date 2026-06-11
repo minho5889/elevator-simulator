@@ -21,7 +21,7 @@ from elevatorsim.core.metrics import MetricsCollector
 from elevatorsim.core.events import (
     Event, PassengerSpawned, CallRegistered, CarArrived,
     DoorOpened, PassengerBoarded, PassengerDeboarded, DoorClosed,
-    CarMoved, CarDispatched
+    CarMoved, CarDispatched, BoardingRefused
 )
 from elevatorsim.config import RNG
 
@@ -72,6 +72,8 @@ class Simulation:
             self.cars.extend(extra_cars)
 
         self.current_time = 0
+        # (car_id, passenger_id) pairs already announced as weight refusals
+        self._announced_refusals: set = set()
         self.listeners: List[Callable[[Event], None]] = [self.metrics.on_event]
 
         # Scripted passenger arrivals: tick -> List[Passenger]
@@ -117,7 +119,8 @@ class Simulation:
                     self.current_time,
                     passenger.passenger_id,
                     passenger.source_floor,
-                    passenger.target_floor
+                    passenger.target_floor,
+                    getattr(passenger, "weight_kg", None)
                 ))
                 self.emit(CallRegistered(
                     self.current_time,
@@ -135,7 +138,8 @@ class Simulation:
                     self.current_time,
                     passenger.passenger_id,
                     passenger.source_floor,
-                    passenger.target_floor
+                    passenger.target_floor,
+                    getattr(passenger, "weight_kg", None)
                 ))
                 self.emit(CallRegistered(
                     self.current_time,
@@ -170,7 +174,8 @@ class Simulation:
             for p in deboarded:
                 self.emit(PassengerDeboarded(self.current_time, p.passenger_id, car.car_id, car.current_floor))
 
-            # Board waiting passengers on current floor
+            # Board waiting passengers on current floor (queue order: first
+            # person who doesn't fit stops boarding, like a real elevator line)
             waiting = self.building.get_waiting_at(car.current_floor)
             boarded = []
             for p in list(waiting):
@@ -178,6 +183,15 @@ class Simulation:
                     boarded.append(p)
                     self.emit(PassengerBoarded(self.current_time, p.passenger_id, car.car_id, car.current_floor))
                 else:
+                    # Announce a weight refusal once per car/passenger pair;
+                    # doors stay open ~2 ticks and we don't want duplicates
+                    refusal_key = (car.car_id, p.passenger_id)
+                    if car.max_weight_kg is not None and refusal_key not in self._announced_refusals:
+                        self._announced_refusals.add(refusal_key)
+                        self.emit(BoardingRefused(
+                            self.current_time, p.passenger_id, car.car_id, car.current_floor,
+                            getattr(p, "weight_kg", 0), car.current_weight_kg, car.max_weight_kg
+                        ))
                     break  # Car is full
             self.building.remove_boarded(car.current_floor, boarded)
 

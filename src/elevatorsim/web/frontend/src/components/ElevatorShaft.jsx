@@ -33,7 +33,7 @@ function WaitingPassenger({ p }) {
   return (
     <span
       className="flex items-center text-[17px] leading-none select-none"
-      title={`${p.id} → ${floorName(p.target)}`}
+      title={`${p.id}${p.weight ? ` (${p.weight}kg)` : ''} → ${floorName(p.target)}`}
     >
       <span>{personEmoji(p.id)}</span>
       <span className="text-[9px] font-bold mono px-1 py-0.5 rounded-md bg-[var(--surface)] border border-[var(--border-ink)] text-[var(--ink-2)] -ml-0.5">
@@ -53,7 +53,7 @@ function Window() {
   );
 }
 
-export default function ElevatorShaft({ state, numFloors, numCars = 1, accent = 'robot', onFloorClick }) {
+export default function ElevatorShaft({ state, numFloors, numCars = 1, accent = 'robot', onFloorClick, maxWeightKg = null }) {
   const { t } = useLang();
   const tones = TONES[accent] || TONES.robot;
   const floorIndices = Array.from({ length: numFloors }, (_, i) => numFloors - 1 - i);
@@ -145,6 +145,12 @@ export default function ElevatorShaft({ state, numFloors, numCars = 1, accent = 
             const riders = carState.onboardPassengers || [];
             const visibleRiders = riders.slice(0, MAX_VISIBLE_RIDERS);
             const hiddenCount = riders.length - visibleRiders.length;
+            const loadKg = riders.reduce((sum, p) => sum + (p.weight || 0), 0);
+            // "Full" = someone was just refused at the door, or even the
+            // lightest character (30kg) couldn't squeeze in
+            const isFull = maxWeightKg != null &&
+              (carState.refusedRecently || (maxWeightKg - loadKg) < 30);
+            const loadPct = maxWeightKg ? Math.min((loadKg / maxWeightKg) * 100, 100) : 0;
 
             return (
               <div key={carId} className={`w-24 flex justify-center relative border-l-[3px] border-[var(--building)] ${idx > 0 ? 'border-dashed' : ''}`} style={{ background: 'rgba(0,0,0,0.03)' }}>
@@ -161,7 +167,7 @@ export default function ElevatorShaft({ state, numFloors, numCars = 1, accent = 
                     boxShadow: `0 4px 0 rgba(62,51,88,0.18)`,
                   }}
                   title={riders.length > 0
-                    ? `${riders.length} riding — doors ${doorsOpen ? 'open' : 'closed'}`
+                    ? `${riders.length} riding, ${loadKg}kg${maxWeightKg ? ` / ${maxWeightKg}kg` : ''} — doors ${doorsOpen ? 'open' : 'closed'}`
                     : `Empty — doors ${doorsOpen ? 'open' : 'closed'}`}
                 >
                   {/* Headcount badge, only when someone is aboard */}
@@ -174,13 +180,20 @@ export default function ElevatorShaft({ state, numFloors, numCars = 1, accent = 
                     </span>
                   )}
 
+                  {/* FULL flag when even the lightest person couldn't fit */}
+                  {isFull && (
+                    <span className="absolute top-0.5 left-1 text-[9px] font-extrabold leading-none px-1 py-0.5 rounded bg-[#FF6B6B] text-white">
+                      {t('shaft.full')}
+                    </span>
+                  )}
+
                   {/* Riders; an empty cab is just an empty room */}
                   <div className="flex-1 flex flex-wrap items-center justify-center content-center gap-x-0 gap-y-0.5 px-1 pt-2 pb-2.5 min-h-[34px]">
                     {visibleRiders.map(p => (
                       <span
                         key={p.id}
                         className="text-[16px] leading-none select-none"
-                        title={`${p.id} → ${floorName(p.target)}`}
+                        title={`${p.id}${p.weight ? ` (${p.weight}kg)` : ''} → ${floorName(p.target)}`}
                       >
                         {personEmoji(p.id)}
                       </span>
@@ -191,6 +204,16 @@ export default function ElevatorShaft({ state, numFloors, numCars = 1, accent = 
                       </span>
                     )}
                   </div>
+
+                  {/* Load gauge: fills as the cab gets heavier, red when full */}
+                  {maxWeightKg != null && riders.length > 0 && (
+                    <div className="mx-1.5 mb-2 h-1 rounded-full bg-[rgba(62,51,88,0.12)] overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{ width: `${loadPct}%`, background: isFull ? '#FF6B6B' : tones.deep }}
+                      ></div>
+                    </div>
+                  )}
 
                   {/* Doors: slide apart when open */}
                   <div className="w-full flex justify-center gap-1 absolute bottom-0.5 px-2">
