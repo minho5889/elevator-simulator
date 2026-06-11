@@ -1,37 +1,58 @@
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=Schibsted+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&family=Jua&family=Gowun+Dodum&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 :root {
-  /* Design system — "lab instrument on warm paper".
-     Ivory page, white surfaces, ink text. Color is reserved for meaning:
-     sage = LOOK heuristic, coral = Gemini agent. */
-  --paper: #FAF9F5;
+  /* Design system — "toy-box arcade".
+     Sunny cream page, white sticker cards with chunky borders and hard
+     offset shadows. Two team colors carry all meaning:
+     sky blue = Rule-Bot (heuristic), candy pink = AI Brain (agentic).
+     Sunshine gold is reserved for the start button and the winner. */
+  --paper: #FFF6E5;
   --surface: #FFFFFF;
-  --well: #F4F2EC;          /* recessed areas: shafts, consoles, inputs */
+  --well: #FBF0DA;          /* recessed areas: shafts, consoles, inputs */
 
-  --line: #E4E1D7;          /* hairline card borders */
-  --line-soft: #EDEAE0;     /* inner dividers, floor lines */
+  --line: #EADFC8;          /* card hairlines on cream */
+  --line-soft: #F2E9D6;     /* inner dividers, floor lines */
+  --border-ink: rgba(62, 51, 88, 0.16);  /* chunky sticker borders */
 
-  --ink: #2A2723;           /* primary text */
-  --ink-2: #57534B;         /* secondary text */
-  --ink-3: #68645C;         /* hints — minimum tier, AA (4.5+) even on --well */
+  --ink: #3E3358;           /* deep plum text */
+  --ink-2: #5F5478;
+  --ink-3: #6F657F;         /* hints — keeps AA on cream and wells */
 
-  /* LOOK heuristic = sage */
-  --look: #6FA28D;
-  --look-text: #2F5D4C;
-  --look-fill: #DDEAE3;
+  /* Team Rule-Bot = sky blue */
+  --robot: #4FA8E8;
+  --robot-text: #195E96;
+  --robot-fill: #DDF0FF;
+  --robot-deep: #2F86CC;
 
-  /* Gemini agent = coral (the bookcloth nod) */
-  --agent: #D97757;
-  --agent-text: #8A3D22;
-  --agent-fill: #F7E2D8;
+  /* Team AI Brain = candy pink */
+  --brain: #F66FB0;
+  --brain-text: #AD1F72;
+  --brain-fill: #FFE4F1;
+  --brain-deep: #E04695;
 
-  --error-text: #A32D2D;
-  --error-fill: #FCEBEB;
-  --warn-text: #854F0B;
+  /* Sunshine = start button, winner gold */
+  --sun: #FFC23E;
+  --sun-deep: #F5A623;
+  --sun-text: #7A5200;
 
-  --sans: 'Schibsted Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-  --display: 'Newsreader', Georgia, serif;
+  --grass: #3BBE6E;
+  --grass-text: #1E7A43;
+
+  --error-text: #C23434;
+  --error-fill: #FFE7E7;
+  --warn-text: #8F5A07;
+
+  /* Legacy aliases — older components reference look/agent tokens */
+  --look: var(--robot);
+  --look-text: var(--robot-text);
+  --look-fill: var(--robot-fill);
+  --agent: var(--brain);
+  --agent-text: var(--brain-text);
+  --agent-fill: var(--brain-fill);
+
+  --sans: 'Nunito', 'Gowun Dodum', -apple-system, BlinkMacSystemFont, sans-serif;
+  --display: 'Baloo 2', 'Jua', 'Nunito', sans-serif;
   --mono: 'JetBrains Mono', monospace;
 
   font-family: var(--sans);
@@ -47,24 +68,99 @@ body {
   padding: 0;
   min-height: 100vh;
   background-color: var(--paper);
+  /* Faint confetti-dot field gives the cream some air without noise */
+  background-image:
+    radial-gradient(rgba(79, 168, 232, 0.10) 1.5px, transparent 1.5px),
+    radial-gradient(rgba(246, 111, 176, 0.08) 1.5px, transparent 1.5px);
+  background-size: 48px 48px, 48px 48px;
+  background-position: 0 0, 24px 24px;
   overflow-x: hidden;
 }
 
 ::selection {
-  background: var(--agent-fill);
+  background: var(--brain-fill);
 }
 
-/* Flat surface card — replaces the old glassmorphism panel */
+/* Sticker card: white, chunky border, hard offset shadow */
 .panel {
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  border: 2px solid var(--border-ink);
+  border-radius: 20px;
+  box-shadow: 0 4px 0 rgba(62, 51, 88, 0.08);
 }
 
-/* Scrollbar: quiet, warm */
+/* Team panels get their color as the border + shadow */
+.panel-robot {
+  border-color: var(--robot);
+  box-shadow: 0 5px 0 rgba(79, 168, 232, 0.35);
+}
+
+.panel-brain {
+  border-color: var(--brain);
+  box-shadow: 0 5px 0 rgba(246, 111, 176, 0.35);
+}
+
+/* Big sunshine action button */
+.btn-sun {
+  font-family: var(--display);
+  background: linear-gradient(180deg, var(--sun) 0%, var(--sun-deep) 100%);
+  color: #5C3D00;
+  border: 2.5px solid rgba(122, 82, 0, 0.35);
+  border-radius: 18px;
+  box-shadow: 0 5px 0 rgba(122, 82, 0, 0.30);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  cursor: pointer;
+}
+
+.btn-sun:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 rgba(122, 82, 0, 0.30);
+  filter: brightness(1.04);
+}
+
+.btn-sun:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(122, 82, 0, 0.30);
+}
+
+.btn-sun:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Smaller chunky button */
+.btn-chunky {
+  border: 2px solid var(--border-ink);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 3px 0 rgba(62, 51, 88, 0.10);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  cursor: pointer;
+}
+
+.btn-chunky:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 rgba(62, 51, 88, 0.10);
+}
+
+.btn-chunky:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(62, 51, 88, 0.10);
+}
+
+/* Scenario cards pop on hover and squish when picked */
+.scenario-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.scenario-card:hover {
+  transform: translateY(-3px) rotate(-0.5deg);
+}
+
+/* Scrollbar: rounded, warm */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -72,12 +168,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D8D4C9;
-  border-radius: 4px;
+  background: #E3D5B8;
+  border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #C4C0B4;
+  background: #D4C29D;
 }
 
 @keyframes pulseSoft {
@@ -91,6 +187,28 @@ body {
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes bounceIn {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes confettiFall {
+  0% { transform: translateY(-12vh) rotate(0deg); opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+}
+
 .pulse-glow {
   animation: pulseSoft 2s infinite ease-in-out;
 }
@@ -99,17 +217,39 @@ body {
   animation: slideUp 0.4s ease-out forwards;
 }
 
-/* Typography: serif display reserved for the page title via .display */
+.bounce-in {
+  animation: bounceIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.wiggle {
+  animation: wiggle 1.2s ease-in-out infinite;
+}
+
+.floaty {
+  animation: floaty 2.4s ease-in-out infinite;
+}
+
+.confetti-piece {
+  position: fixed;
+  top: 0;
+  width: 10px;
+  height: 16px;
+  border-radius: 3px;
+  pointer-events: none;
+  animation: confettiFall linear forwards;
+  z-index: 70;
+}
+
+/* Typography: chunky rounded display for headings */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--sans);
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .display {
   font-family: var(--display);
-  font-weight: 500;
-  letter-spacing: 0;
+  font-weight: 800;
 }
 
 .container {
@@ -132,12 +272,19 @@ h1, h2, h3, h4, h5, h6 {
   animation: spin 1s linear infinite;
 }
 
-/* Keyboard focus: coral ring, visible on paper (a11y). Mouse clicks don't
-   trigger :focus-visible, so pointer users stay clean. */
+/* Tour spotlight: dim everything except the highlighted element */
+.tour-highlight {
+  position: relative;
+  z-index: 62;
+  border-radius: 20px;
+  box-shadow: 0 0 0 4px var(--sun), 0 0 0 9999px rgba(62, 51, 88, 0.55);
+}
+
+/* Keyboard focus: sunny ring (a11y). Mouse clicks stay clean. */
 :focus-visible {
-  outline: 2px solid var(--agent);
+  outline: 3px solid var(--sun-deep);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 /* Respect users who prefer reduced motion. */

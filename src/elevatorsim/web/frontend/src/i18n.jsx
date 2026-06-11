@@ -1,0 +1,323 @@
+// src/elevatorsim/web/frontend/src/i18n.jsx
+// Lightweight EN/KO translation layer: a flat string table + React context.
+// Usage: const { t, lang, setLang } = useLang(); t('race.start')
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
+export const STRINGS = {
+  en: {
+    'app.title': 'Elevator Race!',
+    'app.tagline': 'Two elevators. Same building. Same people. Who gets everyone there faster?',
+    'header.howItWorks': 'How it works',
+    'header.tour': 'Tour',
+    'header.advanced': 'Advanced',
+    'header.simple': 'Simple',
+    'header.settings': 'Settings',
+
+    'pickDay.title': 'Pick a day',
+    'pickDay.hint': 'Each day is a different crowd of passengers.',
+    'scenario.quiet_day.name': 'Quiet Day',
+    'scenario.quiet_day.desc': 'Just a few people. Easy peasy.',
+    'scenario.morning_rush.name': 'Morning Rush',
+    'scenario.morning_rush.desc': 'Everyone rushes down to the lobby!',
+    'scenario.evening_rush.name': 'Evening Rush',
+    'scenario.evening_rush.desc': 'Everyone piles in at the lobby and heads up!',
+
+    'race.start': 'Start the Race!',
+    'race.pause': 'Pause',
+    'race.resume': 'Resume',
+    'race.restart': 'Restart',
+    'race.speed': 'Speed',
+    'race.finished': 'Race finished!',
+    'race.progress': 'Race progress',
+    'race.step': 'Step one turn',
+
+    'racer.robot.name': 'Rule-Bot',
+    'racer.robot.sub': 'Follows one simple rule',
+    'racer.brain.name': 'AI Brain',
+    'racer.brain.sub': 'Thinks about every move',
+    'racer.vs': 'VS',
+    'racer.thinking': 'AI Brain is thinking…',
+    'racer.thinkingSub': 'Looking at who is waiting and picking the smartest move.',
+    'racer.skipped.title': 'AI Brain sat this one out',
+    'racer.skipped.rateLimit': 'The AI hit its usage limit. Preset races always work — or add your own key in Settings.',
+    'racer.openSettings': 'Open settings',
+
+    'score.title': 'Scoreboard',
+    'score.wait': 'Waiting time',
+    'score.wait.hint': 'shorter is better',
+    'score.delivered': 'People delivered',
+    'score.delivered.hint': 'more is better',
+    'score.energy': 'Energy used',
+    'score.energy.hint': 'less is better',
+    'score.turns': 'turns',
+    'score.people': 'people',
+    'score.kwh': 'kWh',
+    'score.tied': 'All tied up!',
+    'score.leads': '{name} leads!',
+
+    'winner.brain': 'AI Brain wins!',
+    'winner.robot': 'Rule-Bot wins!',
+    'winner.tie': "It's a tie!",
+    'winner.waitLess': 'Its passengers waited {pct}% less time.',
+    'winner.waitTie': 'Both teams kept people waiting the same time.',
+    'winner.again': 'Race again',
+    'winner.tryAnother': 'Try another day',
+
+    'live.banner': 'Live mode — tap any floor to add a passenger.',
+    'live.spawnRandom': 'Add random passenger',
+    'live.note': 'This race replays a real AI run, so it works instantly. Want the AI to think live? Switch on Advanced mode.',
+
+    'adv.title': 'Build your own race',
+    'adv.profile': 'Traffic pattern',
+    'adv.profile.uniform': 'Even (random floors)',
+    'adv.profile.down': 'Down-peak (morning)',
+    'adv.profile.up': 'Up-peak (evening)',
+    'adv.arrival': 'How busy? (arrival chance)',
+    'adv.floors': 'Floors',
+    'adv.cars': 'Elevator cars',
+    'adv.ticks': 'Race length (turns)',
+    'adv.seed': 'Random seed',
+    'adv.run': 'Run live race',
+    'adv.running': 'Racing…',
+    'adv.runHint': 'Live races ask a real AI to decide every move. Needs a key or local model in Settings.',
+    'adv.logs': 'Event logs',
+    'adv.chart': 'Waiting time over the race',
+    'adv.chartRobot': 'Rule-Bot',
+    'adv.chartBrain': 'AI Brain',
+    'adv.moves': 'Car moves',
+    'adv.spawned': 'People who showed up',
+
+    'tour.skip': 'Skip tour',
+    'tour.next': 'Next',
+    'tour.back': 'Back',
+    'tour.done': "Let's go!",
+    'tour.1.title': 'Welcome to Elevator Race! 🏢',
+    'tour.1.body': 'Two elevator teams carry the same passengers in the same building. One follows a simple rule. The other is a real AI that thinks. Let’s see who’s faster!',
+    'tour.2.title': 'Pick a day ☀️',
+    'tour.2.body': 'Choose what kind of day it is. A quiet day, a busy morning, or everyone going home at once.',
+    'tour.3.title': 'Start the race 🏁',
+    'tour.3.body': 'Press this big button and watch both elevators work at the same time.',
+    'tour.4.title': 'Team Rule-Bot 🤖',
+    'tour.4.body': 'This elevator follows one simple rule: keep going one way, pick everyone up, then turn around.',
+    'tour.5.title': 'Team AI Brain 🧠',
+    'tour.5.body': 'This elevator is driven by a real AI. Every turn, it looks at who is waiting and decides the smartest move.',
+    'tour.6.title': 'The scoreboard 🏆',
+    'tour.6.body': 'Watch the scores while they race. When the race ends, we crown a winner! Curious for more? Tap “How it works” any time.',
+
+    'how.title': 'How it works',
+    'how.close': 'Got it!',
+    'how.1.title': 'The game',
+    'how.1.body': 'People show up on different floors and want to go somewhere. An elevator has to pick them up and drop them off. The faster everyone gets there, the better.',
+    'how.2.title': 'Team Rule-Bot 🤖',
+    'how.2.body': 'Rule-Bot follows one simple rule, like a wind-up toy: go up while anyone ahead needs you, then turn around and go down. It never thinks — it just follows the rule. (Real elevators mostly work this way!)',
+    'how.3.title': 'Team AI Brain 🧠',
+    'how.3.body': 'AI Brain is a real artificial intelligence (the same kind that powers chatbots). Every turn, it reads the whole situation — who is waiting where, who is inside — and chooses its next move on its own.',
+    'how.4.title': 'The scores',
+    'how.4.body': 'Waiting time: how long people stood around (shorter = better). People delivered: how many reached their floor (more = better). Energy: how much electricity was used (less = better).',
+    'how.5.title': 'What to expect',
+    'how.5.body': 'The AI usually wins on waiting time because it plans ahead — but sometimes it spends more energy to do it. Sometimes the simple rule ties or even wins. That’s the fun: run different days and find out!',
+    'how.6.title': 'Want to go deeper?',
+    'how.6.body': 'Preset races replay real AI runs, so they work instantly. Turn on Advanced mode to build your own race, watch the raw event logs, and connect a live AI that thinks in real time.',
+
+    'settings.title': 'Settings',
+    'settings.desc': 'Pick an AI for the AI Brain team. Keys stay in your browser.',
+    'settings.provider': 'AI provider',
+    'settings.provider.gemini': 'Google Gemini (cloud)',
+    'settings.provider.gemma': 'Ollama / Gemma (local)',
+    'settings.provider.mock': 'Mock (offline, no AI)',
+    'settings.key': 'Gemini API key',
+    'settings.ollamaHost': 'Ollama host URL',
+    'settings.ollamaModel': 'Ollama model id',
+    'settings.mockNote': 'Mock mode runs the simple rule on the AI side too — useful for testing without any AI.',
+    'settings.carSpeeds': 'Car speeds (floors per turn)',
+    'settings.test': 'Test connection',
+    'settings.testing': 'Testing…',
+    'settings.save': 'Save and close',
+    'settings.keyMissing': 'Please enter a key.',
+
+    'spawn.title': 'Add a passenger',
+    'spawn.desc': 'Someone is on floor {floor}. Where do they want to go?',
+    'spawn.cancel': 'Cancel',
+
+    'footer.left': 'A friendly elevator race — with a real AI inside.',
+    'footer.right': 'Built with Strands, Gemini and Gemma',
+
+    'floor.label': 'Floor {n}',
+    'error.ws': 'Connection lost. Try restarting the race.',
+  },
+
+  ko: {
+    'app.title': '엘리베이터 레이스!',
+    'app.tagline': '같은 건물, 같은 승객, 두 대의 엘리베이터. 누가 더 빨리 모두를 데려다줄까요?',
+    'header.howItWorks': '게임 설명',
+    'header.tour': '둘러보기',
+    'header.advanced': '고급 모드',
+    'header.simple': '간단 모드',
+    'header.settings': '설정',
+
+    'pickDay.title': '하루를 골라요',
+    'pickDay.hint': '날마다 승객들이 다르게 나타나요.',
+    'scenario.quiet_day.name': '조용한 하루',
+    'scenario.quiet_day.desc': '사람이 적어서 여유로워요.',
+    'scenario.morning_rush.name': '아침 러시',
+    'scenario.morning_rush.desc': '모두 1층 로비로 서둘러 내려가요!',
+    'scenario.evening_rush.name': '저녁 러시',
+    'scenario.evening_rush.desc': '모두 로비에서 타고 위로 올라가요!',
+
+    'race.start': '레이스 시작!',
+    'race.pause': '일시정지',
+    'race.resume': '계속하기',
+    'race.restart': '다시 시작',
+    'race.speed': '속도',
+    'race.finished': '레이스 끝!',
+    'race.progress': '레이스 진행',
+    'race.step': '한 턴 진행',
+
+    'racer.robot.name': '규칙 로봇',
+    'racer.robot.sub': '간단한 규칙 하나만 따라요',
+    'racer.brain.name': 'AI 브레인',
+    'racer.brain.sub': '매 순간 생각하고 움직여요',
+    'racer.vs': 'VS',
+    'racer.thinking': 'AI 브레인이 생각 중…',
+    'racer.thinkingSub': '누가 기다리는지 보고 가장 똑똑한 수를 고르고 있어요.',
+    'racer.skipped.title': 'AI 브레인이 이번 판은 쉬었어요',
+    'racer.skipped.rateLimit': 'AI 사용량 한도에 걸렸어요. 기본 레이스는 언제나 작동해요. 설정에서 내 키를 넣을 수도 있어요.',
+    'racer.openSettings': '설정 열기',
+
+    'score.title': '점수판',
+    'score.wait': '기다린 시간',
+    'score.wait.hint': '짧을수록 좋아요',
+    'score.delivered': '데려다준 사람',
+    'score.delivered.hint': '많을수록 좋아요',
+    'score.energy': '쓴 에너지',
+    'score.energy.hint': '적을수록 좋아요',
+    'score.turns': '턴',
+    'score.people': '명',
+    'score.kwh': 'kWh',
+    'score.tied': '막상막하!',
+    'score.leads': '{name} 앞서는 중!',
+
+    'winner.brain': 'AI 브레인 승리!',
+    'winner.robot': '규칙 로봇 승리!',
+    'winner.tie': '무승부!',
+    'winner.waitLess': '승객들이 {pct}% 덜 기다렸어요.',
+    'winner.waitTie': '두 팀 모두 똑같이 기다리게 했어요.',
+    'winner.again': '다시 레이스',
+    'winner.tryAnother': '다른 하루 골라보기',
+
+    'live.banner': '라이브 모드 — 층을 누르면 승객이 나타나요.',
+    'live.spawnRandom': '아무 승객이나 추가',
+    'live.note': '이 레이스는 진짜 AI가 실제로 했던 판을 다시 보여줘요. AI가 지금 직접 생각하게 하고 싶나요? 고급 모드를 켜보세요.',
+
+    'adv.title': '나만의 레이스 만들기',
+    'adv.profile': '승객 패턴',
+    'adv.profile.uniform': '골고루 (아무 층이나)',
+    'adv.profile.down': '아침형 (위에서 아래로)',
+    'adv.profile.up': '저녁형 (아래에서 위로)',
+    'adv.arrival': '얼마나 붐빌까? (등장 확률)',
+    'adv.floors': '층수',
+    'adv.cars': '엘리베이터 수',
+    'adv.ticks': '레이스 길이 (턴)',
+    'adv.seed': '랜덤 시드',
+    'adv.run': '라이브 레이스 실행',
+    'adv.running': '레이스 중…',
+    'adv.runHint': '라이브 레이스는 진짜 AI가 매 수를 직접 결정해요. 설정에서 키나 로컬 모델이 필요해요.',
+    'adv.logs': '이벤트 로그',
+    'adv.chart': '레이스 동안 기다린 시간',
+    'adv.chartRobot': '규칙 로봇',
+    'adv.chartBrain': 'AI 브레인',
+    'adv.moves': '엘리베이터 이동',
+    'adv.spawned': '나타난 사람',
+
+    'tour.skip': '건너뛰기',
+    'tour.next': '다음',
+    'tour.back': '이전',
+    'tour.done': '시작하기!',
+    'tour.1.title': '엘리베이터 레이스에 온 걸 환영해요! 🏢',
+    'tour.1.body': '두 엘리베이터 팀이 같은 건물에서 같은 승객을 태워요. 한 팀은 간단한 규칙만 따르고, 다른 팀은 진짜 AI가 생각해서 움직여요. 누가 더 빠를까요?',
+    'tour.2.title': '하루를 골라요 ☀️',
+    'tour.2.body': '어떤 하루인지 골라보세요. 조용한 날, 바쁜 아침, 모두 집에 가는 저녁!',
+    'tour.3.title': '레이스 시작 🏁',
+    'tour.3.body': '이 큰 버튼을 누르면 두 엘리베이터가 동시에 움직이기 시작해요.',
+    'tour.4.title': '규칙 로봇 팀 🤖',
+    'tour.4.body': '이 엘리베이터는 규칙 하나만 따라요. 한 방향으로 쭉 가면서 다 태우고, 끝나면 돌아서요.',
+    'tour.5.title': 'AI 브레인 팀 🧠',
+    'tour.5.body': '이 엘리베이터는 진짜 AI가 운전해요. 매 턴마다 누가 기다리는지 보고 가장 똑똑한 수를 골라요.',
+    'tour.6.title': '점수판 🏆',
+    'tour.6.body': '레이스 중에 점수를 지켜보세요. 끝나면 우승팀이 정해져요! 더 궁금하면 언제든 "게임 설명"을 눌러요.',
+
+    'how.title': '게임 설명',
+    'how.close': '알겠어요!',
+    'how.1.title': '게임 규칙',
+    'how.1.body': '사람들이 여러 층에서 나타나 어딘가로 가고 싶어 해요. 엘리베이터가 태우고 내려줘야 해요. 모두가 빨리 도착할수록 좋아요.',
+    'how.2.title': '규칙 로봇 팀 🤖',
+    'how.2.body': '규칙 로봇은 태엽 장난감처럼 규칙 하나만 따라요. 위에 갈 사람이 있으면 계속 올라가고, 없으면 돌아서 내려와요. 생각은 안 해요. 그냥 규칙대로! (실제 엘리베이터 대부분이 이렇게 움직여요.)',
+    'how.3.title': 'AI 브레인 팀 🧠',
+    'how.3.body': 'AI 브레인은 챗봇을 움직이는 것과 같은 진짜 인공지능이에요. 매 턴마다 누가 어디서 기다리는지, 안에 누가 탔는지 전부 읽고 스스로 다음 수를 골라요.',
+    'how.4.title': '점수 보는 법',
+    'how.4.body': '기다린 시간: 사람들이 서서 기다린 시간 (짧을수록 좋아요). 데려다준 사람: 목적지에 도착한 사람 수 (많을수록 좋아요). 에너지: 쓴 전기 (적을수록 좋아요).',
+    'how.5.title': '어떤 결과가 나올까?',
+    'how.5.body': 'AI는 미리 계획하기 때문에 보통 기다린 시간에서 이겨요. 대신 에너지를 더 쓰기도 해요. 가끔은 간단한 규칙이 비기거나 이기기도 해요! 여러 하루를 돌려보며 직접 확인해보세요.',
+    'how.6.title': '더 깊이 들어가고 싶나요?',
+    'how.6.body': '기본 레이스는 진짜 AI가 했던 판을 다시 틀어줘서 바로 작동해요. 고급 모드를 켜면 나만의 레이스를 만들고, 이벤트 로그를 보고, 실시간으로 생각하는 라이브 AI도 연결할 수 있어요.',
+
+    'settings.title': '설정',
+    'settings.desc': 'AI 브레인 팀이 쓸 AI를 골라요. 키는 브라우저에만 저장돼요.',
+    'settings.provider': 'AI 제공자',
+    'settings.provider.gemini': 'Google Gemini (클라우드)',
+    'settings.provider.gemma': 'Ollama / Gemma (로컬)',
+    'settings.provider.mock': '모의 (오프라인, AI 없음)',
+    'settings.key': 'Gemini API 키',
+    'settings.ollamaHost': 'Ollama 호스트 URL',
+    'settings.ollamaModel': 'Ollama 모델 ID',
+    'settings.mockNote': '모의 모드는 AI 쪽도 간단한 규칙으로 움직여요. AI 없이 테스트할 때 좋아요.',
+    'settings.carSpeeds': '엘리베이터 속도 (턴당 층수)',
+    'settings.test': '연결 테스트',
+    'settings.testing': '테스트 중…',
+    'settings.save': '저장하고 닫기',
+    'settings.keyMissing': '키를 입력해주세요.',
+
+    'spawn.title': '승객 추가',
+    'spawn.desc': '{floor}층에 누군가 있어요. 어디로 가고 싶을까요?',
+    'spawn.cancel': '취소',
+
+    'footer.left': '진짜 AI가 들어있는 친근한 엘리베이터 레이스.',
+    'footer.right': 'Strands, Gemini, Gemma로 만들었어요',
+
+    'floor.label': '{n}층',
+    'error.ws': '연결이 끊겼어요. 레이스를 다시 시작해보세요.',
+  },
+};
+
+const LangContext = createContext(null);
+
+export function LanguageProvider({ children }) {
+  const [lang, setLang] = useState(() => localStorage.getItem('lang') || 'en');
+
+  useEffect(() => {
+    localStorage.setItem('lang', lang);
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  const t = (key, vars) => {
+    let s = STRINGS[lang]?.[key] ?? STRINGS.en[key] ?? key;
+    if (vars) {
+      for (const [k, v] of Object.entries(vars)) {
+        s = s.replaceAll(`{${k}}`, String(v));
+      }
+    }
+    return s;
+  };
+
+  return (
+    <LangContext.Provider value={{ lang, setLang, t }}>
+      {children}
+    </LangContext.Provider>
+  );
+}
+
+export function useLang() {
+  const ctx = useContext(LangContext);
+  if (!ctx) throw new Error('useLang must be used inside LanguageProvider');
+  return ctx;
+}

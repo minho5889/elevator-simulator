@@ -1,17 +1,23 @@
 // src/elevatorsim/web/frontend/src/components/PassengerSpawnModal.jsx
 import React from 'react';
-import { UserCheck } from 'lucide-react';
+import { useLang } from '../i18n.jsx';
 
 export default function PassengerSpawnModal({ activeSpawnFloor, floors, spawnPassenger, onClose }) {
+  const { t } = useLang();
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(42,39,35,0.45)]">
-      <div className="w-full max-w-sm p-6 bg-[var(--surface)] border border-[var(--line)] rounded-xl relative">
-        <h3 className="text-base font-medium text-[var(--ink)] mb-1 flex items-center gap-2">
-          <UserCheck className="text-[var(--ink-3)] w-4 h-4" />
-          Spawn passenger
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(62,51,88,0.45)]" onClick={onClose}>
+      <div
+        className="bounce-in w-full max-w-sm p-6 bg-[var(--surface)] border-[3px] border-[var(--border-ink)] rounded-3xl relative"
+        style={{ boxShadow: '0 8px 0 rgba(62,51,88,0.15)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-xl m-0 mb-1 text-[var(--ink)] flex items-center gap-2">
+          <span>🧍</span>
+          {t('spawn.title')}
         </h3>
-        <p className="text-xs text-[var(--ink-2)] mb-4">
-          Pick a destination for the passenger starting at floor {activeSpawnFloor}.
+        <p className="text-xs font-semibold text-[var(--ink-2)] mb-4">
+          {t('spawn.desc', { floor: activeSpawnFloor })}
         </p>
 
         <div className="grid grid-cols-5 gap-2.5 my-4">
@@ -21,7 +27,7 @@ export default function PassengerSpawnModal({ activeSpawnFloor, floors, spawnPas
               <button
                 key={idx}
                 onClick={() => spawnPassenger(activeSpawnFloor, idx)}
-                className="h-10 rounded-lg bg-[var(--well)] hover:bg-[var(--ink)] hover:text-[var(--paper)] font-mono font-medium text-sm text-[var(--ink)] border border-[var(--line)] hover:border-transparent transition"
+                className="btn-chunky h-11 font-extrabold text-base text-[var(--ink)] hover:bg-[var(--sun)] hover:border-[var(--sun-deep)]"
               >
                 {idx}
               </button>
@@ -32,9 +38,9 @@ export default function PassengerSpawnModal({ activeSpawnFloor, floors, spawnPas
         <div className="flex justify-end mt-4">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-transparent hover:bg-[var(--well)] border border-[var(--line)] rounded-lg text-xs font-medium text-[var(--ink-2)] transition"
+            className="btn-chunky px-4 py-2 text-xs font-extrabold text-[var(--ink-2)]"
           >
-            Cancel
+            {t('spawn.cancel')}
           </button>
         </div>
       </div>

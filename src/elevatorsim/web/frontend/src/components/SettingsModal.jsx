@@ -1,8 +1,9 @@
 // src/elevatorsim/web/frontend/src/components/SettingsModal.jsx
 import React from 'react';
 import { Settings, Key } from 'lucide-react';
+import { useLang } from '../i18n.jsx';
 
-const inputClass = "w-full bg-[var(--well)] border border-[var(--line)] rounded-lg px-3 py-2 text-sm outline-none text-[var(--ink)] placeholder-[var(--ink-3)] focus:border-[var(--agent)]";
+const inputClass = "w-full bg-[var(--well)] border-2 border-[var(--border-ink)] rounded-xl px-3 py-2 text-sm font-semibold outline-none text-[var(--ink)] placeholder-[var(--ink-3)] focus:border-[var(--brain)]";
 
 export default function SettingsModal({
   userApiKey,
@@ -18,40 +19,47 @@ export default function SettingsModal({
   ollamaModelId,
   setOllamaModelId,
   carSpeeds = [1.0],
-  setCarSpeeds
+  setCarSpeeds,
+  onClose,
 }) {
+  const { t } = useLang();
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(42,39,35,0.45)]">
-      <div className="w-full max-w-md p-6 bg-[var(--surface)] border border-[var(--line)] rounded-xl relative max-h-[85vh] overflow-y-auto">
-        <h2 className="text-base font-medium text-[var(--ink)] mb-1 flex items-center gap-2">
-          <Settings className="text-[var(--ink-3)] w-4 h-4" />
-          Settings
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(62,51,88,0.45)]" onClick={onClose}>
+      <div
+        className="bounce-in w-full max-w-md p-6 bg-[var(--surface)] border-[3px] border-[var(--border-ink)] rounded-3xl relative max-h-[85vh] overflow-y-auto"
+        style={{ boxShadow: '0 8px 0 rgba(62,51,88,0.15)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-xl m-0 mb-1 text-[var(--ink)] flex items-center gap-2">
+          <Settings className="text-[var(--ink-3)] w-5 h-5" />
+          {t('settings.title')}
         </h2>
-        <p className="text-xs text-[var(--ink-2)] leading-relaxed mb-4">
-          Pick an LLM provider for the agentic dispatcher. Keys and endpoints are stored locally in your browser.
+        <p className="text-xs font-semibold text-[var(--ink-2)] leading-relaxed mb-4">
+          {t('settings.desc')}
         </p>
 
         {/* LLM provider selector */}
         <div className="flex flex-col gap-1.5 mb-4">
-          <label className="text-xs text-[var(--ink-2)] font-medium">
-            LLM provider
+          <label className="text-xs text-[var(--ink-2)] font-extrabold">
+            {t('settings.provider')}
           </label>
           <select
             value={llmProvider}
             onChange={(e) => setLlmProvider(e.target.value)}
             className={inputClass}
           >
-            <option value="gemini">Google Gemini (cloud)</option>
-            <option value="gemma">Ollama / Gemma 4 (local)</option>
-            <option value="mock">Mock (offline LOOK)</option>
+            <option value="gemini">{t('settings.provider.gemini')}</option>
+            <option value="gemma">{t('settings.provider.gemma')}</option>
+            <option value="mock">{t('settings.provider.mock')}</option>
           </select>
         </div>
 
         {llmProvider === 'gemini' && (
           <div className="flex flex-col gap-1.5 mb-4">
-            <label className="text-xs text-[var(--ink-2)] font-medium flex items-center gap-1">
+            <label className="text-xs text-[var(--ink-2)] font-extrabold flex items-center gap-1">
               <Key className="w-3.5 h-3.5" />
-              Gemini API key
+              {t('settings.key')}
             </label>
             <input
               type="password"
@@ -66,8 +74,8 @@ export default function SettingsModal({
         {llmProvider === 'gemma' && (
           <>
             <div className="flex flex-col gap-1.5 mb-4">
-              <label className="text-xs text-[var(--ink-2)] font-medium">
-                Ollama host URL
+              <label className="text-xs text-[var(--ink-2)] font-extrabold">
+                {t('settings.ollamaHost')}
               </label>
               <input
                 type="text"
@@ -78,8 +86,8 @@ export default function SettingsModal({
               />
             </div>
             <div className="flex flex-col gap-1.5 mb-4">
-              <label className="text-xs text-[var(--ink-2)] font-medium">
-                Ollama model id
+              <label className="text-xs text-[var(--ink-2)] font-extrabold">
+                {t('settings.ollamaModel')}
               </label>
               <input
                 type="text"
@@ -93,21 +101,21 @@ export default function SettingsModal({
         )}
 
         {llmProvider === 'mock' && (
-          <div className="p-3 bg-[var(--well)] border border-[var(--line-soft)] rounded-lg text-xs text-[var(--ink-2)] mb-4 leading-relaxed">
-            Mock runs the deterministic LOOK heuristic offline, exercising the agentic pipeline without any LLM calls.
+          <div className="p-3 bg-[var(--well)] border-2 border-[var(--line-soft)] rounded-xl text-xs font-semibold text-[var(--ink-2)] mb-4 leading-relaxed">
+            {t('settings.mockNote')}
           </div>
         )}
 
         {/* Car speeds */}
         {carSpeeds && carSpeeds.length > 0 && (
-          <div className="border-t border-[var(--line-soft)] pt-4 mt-4">
-            <label className="text-xs text-[var(--ink-2)] font-medium mb-2 block">
-              Car speeds (floors per tick)
+          <div className="border-t-2 border-[var(--line-soft)] pt-4 mt-4">
+            <label className="text-xs text-[var(--ink-2)] font-extrabold mb-2 block">
+              {t('settings.carSpeeds')}
             </label>
             <div className="flex flex-col gap-3">
               {carSpeeds.map((speed, idx) => (
                 <div key={idx} className="flex items-center gap-3">
-                  <span className="text-xs font-mono text-[var(--ink-2)] w-12">
+                  <span className="text-xs mono font-bold text-[var(--ink-2)] w-12">
                     C{idx + 1}
                   </span>
                   <input
@@ -122,9 +130,9 @@ export default function SettingsModal({
                       nextSpeeds[idx] = parseFloat(e.target.value);
                       setCarSpeeds(nextSpeeds);
                     }}
-                    className="flex-1 accent-[#2A2723] h-1.5 cursor-pointer"
+                    className="flex-1 accent-[#F5A623] h-1.5 cursor-pointer"
                   />
-                  <span className="text-xs font-mono font-medium text-[var(--ink)] w-8 text-right">
+                  <span className="text-xs mono font-bold text-[var(--ink)] w-8 text-right">
                     {speed.toFixed(1)}x
                   </span>
                 </div>
@@ -134,7 +142,7 @@ export default function SettingsModal({
         )}
 
         {keyCheckResult && llmProvider === 'gemini' && (
-          <div className={`p-3 rounded-lg text-xs mb-4 mt-4 border ${keyCheckResult.success ? 'bg-[var(--look-fill)] border-[var(--look)] text-[var(--look-text)]' : 'bg-[var(--error-fill)] border-[#F09595] text-[var(--error-text)]'}`}>
+          <div className={`p-3 rounded-xl text-xs font-bold mb-4 mt-4 border-2 ${keyCheckResult.success ? 'bg-[#E5F7EC] border-[var(--grass)] text-[var(--grass-text)]' : 'bg-[var(--error-fill)] border-[#F09595] text-[var(--error-text)]'}`}>
           {keyCheckResult.message}
           </div>
         )}
@@ -144,16 +152,16 @@ export default function SettingsModal({
             <button
               onClick={handleTestKey}
               disabled={keyChecking}
-              className="px-3 py-1.5 bg-transparent hover:bg-[var(--well)] border border-[var(--line)] text-[var(--ink-2)] font-medium rounded-lg text-xs transition disabled:opacity-50"
+              className="btn-chunky px-3.5 py-2 text-xs font-extrabold text-[var(--ink-2)] disabled:opacity-50"
             >
-              {keyChecking ? 'Testing…' : 'Test connection'}
+              {keyChecking ? t('settings.testing') : t('settings.test')}
             </button>
           )}
           <button
             onClick={handleSaveSettings}
-            className="px-4 py-1.5 bg-[var(--ink)] hover:bg-[#3C3833] text-[var(--paper)] font-medium rounded-lg text-xs transition"
+            className="btn-sun px-5 py-2 text-sm font-extrabold"
           >
-            Save and close
+            {t('settings.save')}
           </button>
         </div>
       </div>

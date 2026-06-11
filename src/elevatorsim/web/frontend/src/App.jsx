@@ -1,21 +1,39 @@
 // src/elevatorsim/web/frontend/src/App.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Play, Pause, RotateCcw, ChevronRight, Settings, 
-  Key, AlertCircle, HelpCircle, Activity, Award, Navigation, UserCheck, Clock, Zap
+import {
+  Play, Pause, RotateCcw, ChevronRight, Settings,
+  AlertCircle, BookOpen, HelpCircle, Wrench, Languages
 } from 'lucide-react';
 import { reconstructState, getAverageWaitTimeAtTick, getEnergyAtTick } from './utils/simulationHelper';
 import ElevatorShaft from './components/ElevatorShaft';
 import ConsoleTerminal from './components/ConsoleTerminal';
-import MetricComparisonCard from './components/MetricComparisonCard';
 import WaitTimeChart from './components/WaitTimeChart';
 import SettingsModal from './components/SettingsModal';
 import PassengerSpawnModal from './components/PassengerSpawnModal';
+import Scoreboard from './components/Scoreboard';
+import WinnerBanner from './components/WinnerBanner';
+import TourOverlay from './components/TourOverlay';
+import HowItWorksModal from './components/HowItWorksModal';
+import { useLang } from './i18n.jsx';
 
 const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
+const SCENARIOS = [
+  { key: 'quiet_day', emoji: '☀️' },
+  { key: 'morning_rush', emoji: '🌅' },
+  { key: 'evening_rush', emoji: '🌆' },
+];
+
+const SPEED_OPTIONS = [
+  { ms: 1000, label: '🐢' },
+  { ms: 500, label: '🙂' },
+  { ms: 250, label: '🐇' },
+  { ms: 100, label: '⚡' },
+];
 
 export default function App() {
+  const { t, lang, setLang } = useLang();
+
   // App Configurations & Key
   const [userApiKey, setUserApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -24,6 +42,13 @@ export default function App() {
   const [llmProvider, setLlmProvider] = useState(() => localStorage.getItem('llm_provider') || 'gemini');
   const [ollamaHost, setOllamaHost] = useState(() => localStorage.getItem('ollama_host') || 'http://localhost:11434');
   const [ollamaModelId, setOllamaModelId] = useState(() => localStorage.getItem('ollama_model_id') || 'gemma4:e4b');
+
+  // Friendly-vs-developer surface
+  const [advancedMode, setAdvancedMode] = useState(() => localStorage.getItem('advanced_mode') === '1');
+  const [showTour, setShowTour] = useState(() => !localStorage.getItem('tour_done'));
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [raceStarted, setRaceStarted] = useState(false);
+  const [winnerDismissed, setWinnerDismissed] = useState(false);
 
   // Preset scenarios database
   const [presets, setPresets] = useState({});
@@ -50,7 +75,7 @@ export default function App() {
     });
   }, [numCars]);
   const [profile, setProfile] = useState('UNIFORM');
-  
+
   // App status states
   const [simulating, setSimulating] = useState(false);
   const [simError, setSimError] = useState(null);
@@ -78,6 +103,10 @@ export default function App() {
   const wsRef = useRef(null);
   const playbackTimeoutRef = useRef(null);
   const intervalRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem('advanced_mode', advancedMode ? '1' : '0');
+  }, [advancedMode]);
 
   // Fetch presets on load
   useEffect(() => {
@@ -168,7 +197,7 @@ export default function App() {
     ws.onopen = () => {
       console.log('WebSocket connection opened.');
       setWsConnected(true);
-      
+
       // Initialize on backend
       ws.send(JSON.stringify({
         type: 'init',
@@ -239,7 +268,7 @@ export default function App() {
 
     ws.onerror = (err) => {
       console.error('WebSocket error:', err);
-      setSimError('WebSocket connection error.');
+      setSimError(t('error.ws'));
     };
   };
 
@@ -250,12 +279,14 @@ export default function App() {
     setArrivalRate(presetObj.arrival_rate);
     setMaxTicks(presetObj.max_ticks);
     setProfile(presetObj.profile);
-    
+
     setHeuristicData(presetObj.heuristic);
     setAgenticData(presetObj.agentic);
     setAgenticError(null);
     setCurrentTick(0);
     setIsPlaying(false);
+    setRaceStarted(false);
+    setWinnerDismissed(false);
   };
 
   const handlePresetChange = (presetName) => {
@@ -272,7 +303,7 @@ export default function App() {
 
   const handleTestKey = () => {
     if (!userApiKey.trim()) {
-      setKeyCheckResult({ success: false, message: 'Please enter a key.' });
+      setKeyCheckResult({ success: false, message: t('settings.keyMissing') });
       return;
     }
     setKeyChecking(true);
@@ -323,16 +354,15 @@ export default function App() {
     setCurrentTick(0);
     setIsInteractiveMode(true);
     setActivePreset('custom');
+    setRaceStarted(true);
+    setWinnerDismissed(false);
 
     // Instantiate interactive WebSocket session
     initWebSocket();
   };
 
   const spawnPassenger = (source, target) => {
-    if (!isInteractiveMode) {
-      alert("Manual passenger spawning is only supported in custom interactive simulations. Please click 'Run Simulation' to start one first.");
-      return;
-    }
+    if (!isInteractiveMode) return;
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
@@ -341,16 +371,13 @@ export default function App() {
         target: Number(target)
       }));
     } else {
-      setSimError("WebSocket is not connected. Cannot spawn passenger.");
+      setSimError(t('error.ws'));
     }
     setActiveSpawnFloor(null);
   };
 
   const handleRandomSpawn = () => {
-    if (!isInteractiveMode) {
-      alert("Manual passenger spawning is only supported in custom interactive simulations. Please click 'Run Simulation' to start one first.");
-      return;
-    }
+    if (!isInteractiveMode) return;
 
     const source = Math.floor(Math.random() * floors);
     let target = Math.floor(Math.random() * floors);
@@ -361,13 +388,66 @@ export default function App() {
     spawnPassenger(source, target);
   };
 
+  const handleRestart = () => {
+    setCurrentTick(0);
+    setIsPlaying(false);
+    setIsAgentThinking(false);
+    setWinnerDismissed(false);
+    if (playbackTimeoutRef.current) {
+      clearTimeout(playbackTimeoutRef.current);
+      playbackTimeoutRef.current = null;
+    }
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (isInteractiveMode) {
+      initWebSocket();
+    }
+  };
+
+  const handleStartRace = () => {
+    setRaceStarted(true);
+    setWinnerDismissed(false);
+    if (currentTick >= maxTicks) {
+      handleRestart();
+      // Restart playback on the next frame so tick resets first
+      requestAnimationFrame(() => setIsPlaying(true));
+      return;
+    }
+    setIsPlaying(!isPlaying);
+  };
+
   // Reconstruct States
   const hState = reconstructState(heuristicData?.events, currentTick, numCars);
   const aState = reconstructState(agenticData?.events, currentTick, numCars);
 
-  // Reconstruct Metrics
-  const hMetricsAtTick = heuristicData?.metrics;
-  const aMetricsAtTick = agenticData?.metrics;
+  const hasBrain = !!agenticData && !agenticError;
+
+  // Plain-language scoreboard numbers
+  const hWait = heuristicData ? getAverageWaitTimeAtTick(heuristicData.events, currentTick) : 0;
+  const aWait = hasBrain ? getAverageWaitTimeAtTick(agenticData.events, currentTick) : null;
+  const hDelivered = hState.rawEvents.filter(e => e.event_type === "PassengerDeboarded").length;
+  const aDelivered = hasBrain ? aState.rawEvents.filter(e => e.event_type === "PassengerDeboarded").length : null;
+  const hEnergy = heuristicData ? getEnergyAtTick(heuristicData, currentTick) : 0;
+  const aEnergy = hasBrain ? getEnergyAtTick(agenticData, currentTick) : null;
+
+  // Race verdict at the finish line
+  const raceOver = raceStarted && maxTicks > 0 && currentTick >= maxTicks;
+  let winner = 'tie';
+  let winnerPct = 0;
+  if (raceOver && hasBrain) {
+    const hFinal = getAverageWaitTimeAtTick(heuristicData.events, maxTicks);
+    const aFinal = getAverageWaitTimeAtTick(agenticData.events, maxTicks);
+    if (aFinal < hFinal) {
+      winner = 'brain';
+      winnerPct = hFinal > 0 ? Math.round(((hFinal - aFinal) / hFinal) * 100) : 0;
+    } else if (hFinal < aFinal) {
+      winner = 'robot';
+      winnerPct = aFinal > 0 ? Math.round(((aFinal - hFinal) / aFinal) * 100) : 0;
+    }
+  }
+  const showWinner = raceOver && !winnerDismissed && !isInteractiveMode;
 
   // Chart Coordinates calculation
   const getChartPoints = (eventsData) => {
@@ -396,186 +476,197 @@ export default function App() {
     look: p.y,
     gemini: aChartPoints[i] ? aChartPoints[i].y : null,
   }));
-  const hasAgenticSeries = !!agenticData && !agenticError;
+  const hasAgenticSeries = hasBrain;
 
+  const progressPct = maxTicks > 0 ? Math.min((currentTick / maxTicks) * 100, 100) : 0;
 
   return (
-    <div className="container slide-up">
+    // No transform animation on this root: a persistent transform would
+    // re-anchor the fixed-position modals/tour to this box, not the viewport
+    <div className="container">
       {/* Header */}
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-6 pb-5 border-b border-[var(--line)]">
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
         <div>
-          <h1 className="display text-2xl sm:text-3xl text-[var(--ink)] m-0 flex flex-wrap items-baseline gap-3">
-            <span>Elevator simulator</span>
-            <span className="[font-family:var(--sans)] text-xs bg-[var(--well)] text-[var(--ink-2)] border border-[var(--line)] px-2.5 py-0.5 rounded-full">A/B dashboard</span>
+          <h1 className="display text-3xl sm:text-4xl text-[var(--ink)] m-0 flex items-center gap-2">
+            <span className="floaty inline-block select-none" aria-hidden="true">🏢</span>
+            {t('app.title')}
           </h1>
-          <p className="text-xs sm:text-sm text-[var(--ink-2)] mt-1.5">LOOK heuristic vs Gemini agent, side by side</p>
+          <p className="text-sm font-bold text-[var(--ink-2)] mt-1 mb-0">{t('app.tagline')}</p>
         </div>
-        <button
-          onClick={() => setShowSettingsModal(true)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--line)] bg-transparent text-sm text-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--well)] transition self-stretch sm:self-auto justify-center"
-        >
-          <Settings className="w-4 h-4" />
-          Settings
-        </button>
+
+        <div className="flex items-center gap-2 flex-wrap" data-tour="header">
+          <button
+            onClick={() => setShowHowItWorks(true)}
+            className="btn-chunky flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-[var(--ink-2)]"
+          >
+            <BookOpen className="w-4 h-4" />
+            {t('header.howItWorks')}
+          </button>
+          <button
+            onClick={() => setShowTour(true)}
+            className="btn-chunky flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-[var(--ink-2)]"
+            title={t('header.tour')}
+          >
+            <HelpCircle className="w-4 h-4" />
+            {t('header.tour')}
+          </button>
+          <button
+            onClick={() => setLang(lang === 'en' ? 'ko' : 'en')}
+            className="btn-chunky flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-[var(--ink-2)]"
+            title="Language"
+          >
+            <Languages className="w-4 h-4" />
+            {lang === 'en' ? '한국어' : 'EN'}
+          </button>
+          <button
+            onClick={() => setAdvancedMode(!advancedMode)}
+            className="btn-chunky flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold transition-colors text-[var(--ink-2)]"
+            // Inline styles: .btn-chunky's background would out-specificity a bg- utility
+            style={advancedMode ? { background: 'var(--ink)', color: '#FFF6E5', borderColor: 'var(--ink)' } : undefined}
+            aria-pressed={advancedMode}
+          >
+            <Wrench className="w-4 h-4" />
+            {t('header.advanced')}
+          </button>
+          {advancedMode && (
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="btn-chunky flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-[var(--ink-2)]"
+            >
+              <Settings className="w-4 h-4" />
+              {t('header.settings')}
+            </button>
+          )}
+        </div>
       </header>
 
-      {/* Main Grid */}
-      <div role="main" className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Column - Configuration (3 cols) */}
-        <div className="lg:col-span-3 flex flex-col gap-6">
-          
-          {/* Preset scenarios */}
-          <div className="panel p-4 flex flex-col gap-3">
-            <h2 className="text-xs font-medium text-[var(--ink-3)] m-0">Presets</h2>
-            <div className="flex flex-col gap-1">
-              <button
-                onClick={() => handlePresetChange('quiet_day')}
-                className={`text-left px-3 py-2 rounded-lg text-sm transition ${activePreset === 'quiet_day' ? 'bg-[var(--well)] border border-[var(--line)] text-[var(--ink)] font-medium' : 'bg-transparent border border-transparent text-[var(--ink-2)] hover:bg-[var(--well)]'}`}
-              >
-                Uniform quiet day
-              </button>
-              <button
-                onClick={() => handlePresetChange('morning_rush')}
-                className={`text-left px-3 py-2 rounded-lg text-sm transition ${activePreset === 'morning_rush' ? 'bg-[var(--well)] border border-[var(--line)] text-[var(--ink)] font-medium' : 'bg-transparent border border-transparent text-[var(--ink-2)] hover:bg-[var(--well)]'}`}
-              >
-                Morning lobby rush
-              </button>
-              <button
-                onClick={() => handlePresetChange('evening_rush')}
-                className={`text-left px-3 py-2 rounded-lg text-sm transition ${activePreset === 'evening_rush' ? 'bg-[var(--well)] border border-[var(--line)] text-[var(--ink)] font-medium' : 'bg-transparent border border-transparent text-[var(--ink-2)] hover:bg-[var(--well)]'}`}
-              >
-                Evening departure rush
-              </button>
-            </div>
+      <main className="flex flex-col gap-6">
+
+        {/* Step 1: pick a day */}
+        <section className="panel p-4 sm:p-5" data-tour="scenarios">
+          <div className="flex items-baseline gap-3 mb-3 flex-wrap">
+            <h2 className="text-lg m-0 text-[var(--ink)]">
+              <span className="mr-1.5">📅</span>{t('pickDay.title')}
+            </h2>
+            <span className="text-xs font-bold text-[var(--ink-3)]">{t('pickDay.hint')}</span>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {SCENARIOS.map(({ key, emoji }) => {
+              const active = activePreset === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => handlePresetChange(key)}
+                  className={`scenario-card text-left p-4 rounded-2xl border-[2.5px] cursor-pointer ${
+                    active
+                      ? 'bg-[#FFF3D6] border-[var(--sun-deep)]'
+                      : 'bg-[var(--surface)] border-[var(--border-ink)] hover:border-[var(--sun)]'
+                  }`}
+                  style={{ boxShadow: active ? '0 4px 0 rgba(245,166,35,0.45)' : '0 3px 0 rgba(62,51,88,0.08)' }}
+                  aria-pressed={active}
+                >
+                  <div className="text-3xl mb-1.5 select-none" aria-hidden="true">{emoji}</div>
+                  <div className="text-base font-extrabold text-[var(--ink)] [font-family:var(--display)]">
+                    {t(`scenario.${key}.name`)}
+                  </div>
+                  <div className="text-xs font-bold text-[var(--ink-2)] mt-0.5 leading-snug">
+                    {t(`scenario.${key}.desc`)}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-          {/* Configuration Parameters */}
-          <div className="panel p-4 flex flex-col gap-4">
-            <h2 className="text-xs font-medium text-[var(--ink-3)] m-0">Simulation config</h2>
+        {/* Step 2: race controls */}
+        <section className="panel p-4 sm:p-5 flex flex-wrap items-center gap-4" data-tour="start">
+          <button
+            onClick={handleStartRace}
+            className="btn-sun flex items-center gap-2 px-7 py-3 text-xl font-extrabold"
+          >
+            {isPlaying ? (
+              <><Pause className="w-6 h-6" /> {t('race.pause')}</>
+            ) : (
+              <>🏁 {raceStarted && currentTick > 0 && currentTick < maxTicks ? t('race.resume') : t('race.start')}</>
+            )}
+          </button>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--ink-2)]">Traffic profile</label>
-              <select
-                value={profile}
-                onChange={(e) => setProfile(e.target.value)}
-                aria-label="Traffic profile"
-                className="w-full bg-[var(--well)] border border-[var(--line)] rounded-lg px-2.5 py-1.5 text-sm outline-none text-[var(--ink)]"
+          <button
+            onClick={handleRestart}
+            className="btn-chunky p-3 text-[var(--ink-2)]"
+            title={t('race.restart')}
+            aria-label={t('race.restart')}
+          >
+            <RotateCcw className="w-5 h-5" />
+          </button>
+
+          {/* Race progress: a little elevator riding toward the finish flag */}
+          <div
+            className="flex-1 min-w-[200px] flex items-center gap-2"
+            role="progressbar"
+            aria-label={t('race.progress')}
+            aria-valuenow={currentTick}
+            aria-valuemin={0}
+            aria-valuemax={maxTicks}
+          >
+            <div className="flex-1 h-5 rounded-full bg-[var(--well)] border-2 border-[var(--border-ink)] relative overflow-visible">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${progressPct}%`,
+                  background: 'linear-gradient(90deg, var(--sun) 0%, var(--sun-deep) 100%)',
+                }}
+              ></div>
+              <span
+                className="absolute top-1/2 -translate-y-1/2 text-base select-none transition-all duration-300"
+                style={{ left: `calc(${progressPct}% - 10px)` }}
+                aria-hidden="true"
               >
-                <option value="UNIFORM">Uniform</option>
-                <option value="DOWN_PEAK">Down-peak (morning)</option>
-                <option value="UP_PEAK">Up-peak (evening)</option>
-              </select>
+                🛗
+              </span>
             </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--ink-2)] flex justify-between">
-                <span>Arrival probability</span>
-                <span className="font-medium font-mono text-[var(--ink)]">{arrivalRate}</span>
-              </label>
-              <input
-                type="range" min="0.1" max="1.0" step="0.05" aria-label="Arrival probability"
-                value={arrivalRate} onChange={(e) => setArrivalRate(Number(e.target.value))}
-                className="w-full accent-[#2A2723]"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--ink-2)] flex justify-between">
-                <span>Floors</span>
-                <span className="font-medium font-mono text-[var(--ink)]">{floors}</span>
-              </label>
-              <input
-                type="range" min="5" max="10" step="1" aria-label="Number of floors"
-                value={floors} onChange={(e) => setFloors(Number(e.target.value))}
-                className="w-full accent-[#2A2723]"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--ink-2)] flex justify-between">
-                <span>Elevator cars</span>
-                <span className="font-medium font-mono text-[var(--ink)]">{numCars}</span>
-              </label>
-              <input
-                type="range" min="1" max="6" step="1" aria-label="Number of elevator cars"
-                value={numCars} onChange={(e) => setNumCars(Number(e.target.value))}
-                className="w-full accent-[#2A2723]"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--ink-2)] flex justify-between">
-                <span>Max ticks</span>
-                <span className="font-medium font-mono text-[var(--ink)]">{maxTicks}</span>
-              </label>
-              <input
-                type="range" min="30" max="100" step="10" aria-label="Maximum ticks"
-                value={maxTicks} onChange={(e) => setMaxTicks(Number(e.target.value))}
-                className="w-full accent-[#2A2723]"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--ink-2)]">RNG seed</label>
-              <input
-                type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value))} aria-label="RNG seed"
-                className="w-full bg-[var(--well)] border border-[var(--line)] rounded-lg px-2.5 py-1.5 text-sm outline-none text-[var(--ink)] font-mono"
-              />
-            </div>
-
-            <button
-              onClick={runCustomSimulation}
-              disabled={simulating}
-              className="w-full mt-2 bg-[var(--ink)] hover:bg-[#3C3833] text-[var(--paper)] font-medium py-2 rounded-lg text-sm transition disabled:opacity-50"
-            >
-              {simulating ? 'Simulating…' : 'Run simulation'}
-            </button>
-            {simError && (
-              <p className="text-xs text-[var(--error-text)] flex items-center gap-1 mt-1">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {simError}
-              </p>
+            <span className="text-lg select-none" aria-hidden="true">🏁</span>
+            {raceOver && (
+              <span className="text-xs font-extrabold text-[var(--grass-text)] whitespace-nowrap">
+                {t('race.finished')}
+              </span>
             )}
           </div>
-        </div>
 
-        {/* Center / Right Column - Visualizer & Metrics (9 cols) */}
-        <div className="lg:col-span-9 flex flex-col gap-6">
+          {/* Speed: turtle to lightning */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-extrabold text-[var(--ink-3)]">{t('race.speed')}</span>
+            <div className="flex gap-1">
+              {SPEED_OPTIONS.map(({ ms, label }) => (
+                <button
+                  key={ms}
+                  onClick={() => setPlaybackSpeed(ms)}
+                  className={`w-9 h-9 rounded-xl border-2 text-base transition-all cursor-pointer ${
+                    playbackSpeed === ms
+                      ? 'bg-[var(--sun)] border-[var(--sun-deep)] scale-110'
+                      : 'bg-[var(--surface)] border-[var(--border-ink)] hover:border-[var(--sun)]'
+                  }`}
+                  aria-pressed={playbackSpeed === ms}
+                  title={`${(500 / ms).toFixed(1)}x`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          {/* Playback Control Bar */}
-          <div className="panel p-4 flex flex-wrap gap-4 items-center justify-between">
-            <div className="flex items-center gap-2">
+          {/* Advanced: scrubber + step */}
+          {advancedMode && (
+            <div className="w-full flex items-center gap-3 pt-3 border-t-2 border-[var(--line-soft)]">
+              <span className="text-xs font-bold mono text-[var(--ink)] w-8">{String(currentTick).padStart(3, '0')}</span>
+              <input
+                type="range" min="0" max={maxTicks} aria-label="Timeline scrubber"
+                value={currentTick} onChange={(e) => { setCurrentTick(Number(e.target.value)); setIsPlaying(false); }}
+                disabled={isInteractiveMode}
+                className="flex-1 accent-[#F5A623] h-1.5 cursor-pointer disabled:opacity-50"
+              />
+              <span className="text-xs mono text-[var(--ink-3)] w-8">{String(maxTicks).padStart(3, '0')}</span>
               <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                aria-label={isPlaying ? 'Pause playback' : 'Play playback'}
-                className="p-2 rounded-full bg-[var(--ink)] hover:bg-[#3C3833] text-[var(--paper)] transition"
-              >
-                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-              </button>
-              <button 
-                onClick={() => {
-                  setCurrentTick(0);
-                  setIsPlaying(false);
-                  setIsAgentThinking(false);
-                  if (playbackTimeoutRef.current) {
-                    clearTimeout(playbackTimeoutRef.current);
-                    playbackTimeoutRef.current = null;
-                  }
-                  if (intervalRef.current) {
-                    clearInterval(intervalRef.current);
-                    intervalRef.current = null;
-                  }
-                  if (isInteractiveMode) {
-                    initWebSocket();
-                  }
-                }}
-                className="p-2 rounded-full border border-[var(--line)] bg-transparent text-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--well)] transition"
-                title="Reset simulation"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-              <button 
                 onClick={() => {
                   setIsPlaying(false);
                   if (isInteractiveMode) {
@@ -588,197 +679,206 @@ export default function App() {
                     }
                   }
                 }}
-                className="p-2 rounded-full border border-[var(--line)] bg-transparent text-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--well)] transition"
-                title="Step one tick"
+                className="btn-chunky p-2 text-[var(--ink-2)]"
+                title={t('race.step')}
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
-
-            {/* Scrubber timeline */}
-            <div className="flex-1 min-w-[200px] flex items-center gap-3">
-              <span className="text-xs font-medium font-mono text-[var(--ink)] w-8">{String(currentTick).padStart(3, '0')}</span>
-              <input
-                type="range" min="0" max={maxTicks} aria-label="Timeline scrubber"
-                value={currentTick} onChange={(e) => { setCurrentTick(Number(e.target.value)); setIsPlaying(false); }}
-                disabled={isInteractiveMode}
-                className="flex-1 accent-[#2A2723] h-1.5 cursor-pointer disabled:opacity-50"
-              />
-              <span className="text-xs font-mono text-[var(--ink-3)] w-8">{String(maxTicks).padStart(3, '0')}</span>
-            </div>
-
-            {/* Speed controller */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--ink-3)]">Speed</span>
-              <select
-                value={playbackSpeed}
-                onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
-                aria-label="Playback speed"
-                className="bg-[var(--well)] border border-[var(--line)] rounded-lg px-2 py-1 text-xs outline-none text-[var(--ink)]"
-              >
-                <option value={1000}>0.5x</option>
-                <option value={500}>1.0x</option>
-                <option value={250}>2.0x</option>
-                <option value={100}>5.0x</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Interactive Spawning Helper Banner */}
-          {isInteractiveMode && (
-            <div className="px-4 py-2 flex justify-between items-center bg-[var(--look-fill)] border border-[var(--look)] rounded-lg text-xs slide-up">
-              <span className="flex items-center gap-2 text-[var(--look-text)] font-medium">
-                <span className="w-2 h-2 rounded-full bg-[var(--look)] pulse-glow"></span>
-                Interactive mode — click any floor row to spawn passengers.
-              </span>
-              <button
-                onClick={handleRandomSpawn}
-                className="px-2.5 py-1 bg-[var(--surface)] hover:bg-white border border-[var(--look)] text-[var(--look-text)] font-medium rounded-md text-[11px] transition"
-              >
-                Spawn random passenger
-              </button>
-            </div>
           )}
 
-          {/* Elevator Canvas Shafts */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* LOOK Heuristic Shaft */}
-            <div className="panel p-4 flex flex-col border-t-2 border-t-[var(--look)] rounded-t-none">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-sm font-medium text-[var(--look-text)] flex items-center gap-1.5 m-0">
-                  <Navigation className="w-3.5 h-3.5 rotate-45" />
-                  LOOK heuristic
-                </h3>
-                <span className="text-[11px] bg-[var(--well)] border border-[var(--line)] px-2 py-0.5 rounded-full text-[var(--ink-3)]">offline</span>
-              </div>
+          {simError && (
+            <p className="w-full text-xs font-bold text-[var(--error-text)] flex items-center gap-1 m-0">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {simError}
+            </p>
+          )}
+        </section>
 
-              <ElevatorShaft
-                state={hState}
-                numFloors={floors}
-                numCars={numCars}
-                accent="look"
-                onFloorClick={isInteractiveMode ? (fIdx) => setActiveSpawnFloor(fIdx) : null}
-              />
-              <ConsoleTerminal logRef={hLogRef} logs={hState.logs} title="LOOK event log" />
-            </div>
+        {/* Interactive Spawning Helper Banner */}
+        {isInteractiveMode && (
+          <div className="px-4 py-2.5 flex justify-between items-center bg-[var(--robot-fill)] border-2 border-[var(--robot)] rounded-2xl text-xs slide-up flex-wrap gap-2">
+            <span className="flex items-center gap-2 text-[var(--robot-text)] font-extrabold">
+              <span className="w-2.5 h-2.5 rounded-full bg-[var(--robot)] pulse-glow"></span>
+              {t('live.banner')}
+            </span>
+            <button
+              onClick={handleRandomSpawn}
+              className="btn-chunky px-3 py-1.5 text-[11px] font-extrabold text-[var(--robot-text)]"
+            >
+              🧍 {t('live.spawnRandom')}
+            </button>
+          </div>
+        )}
 
-            {/* Agentic Gemini Shaft */}
-            <div className={`panel p-4 flex flex-col border-t-2 border-t-[var(--agent)] rounded-t-none relative transition-all duration-300 ${isAgentThinking ? 'border-[var(--agent)]' : ''}`}>
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-sm font-medium text-[var(--agent-text)] flex items-center gap-1.5 m-0">
-                  <UserCheck className="w-3.5 h-3.5" />
-                  Gemini agent
-                </h3>
-                <span className="text-[11px] bg-[var(--agent-fill)] border border-[var(--agent)] px-2 py-0.5 rounded-full text-[var(--agent-text)]">agentic</span>
-              </div>
+        {/* The race arena */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
 
-              {isAgentThinking && (
-                <div className="absolute inset-0 bg-[rgba(250,249,245,0.88)] rounded-lg z-10 flex flex-col items-center justify-center text-center p-6">
-                  <div className="w-8 h-8 rounded-full border-2 border-t-[var(--agent)] border-r-transparent animate-spin mb-3"></div>
-                  <h4 className="text-sm font-medium text-[var(--ink)]">Gemini is thinking…</h4>
-                  <p className="text-[11px] text-[var(--ink-2)] mt-1 max-w-[200px] leading-relaxed">
-                    Analyzing floor queues and car state to pick the next dispatch.
-                  </p>
-                </div>
-              )}
-
-              {agenticError ? (
-                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-[var(--well)] border border-dashed border-[var(--line)] rounded-lg min-h-[300px]">
-                  <AlertCircle className="w-8 h-8 text-[var(--warn-text)] mb-2" />
-                  <h4 className="text-sm font-medium text-[var(--ink)]">Agentic run skipped</h4>
-                  <p className="text-xs text-[var(--ink-2)] mt-1 max-w-[280px] leading-relaxed">
-                    {agenticError.includes('RESOURCE_EXHAUSTED') ?
-                      "Gemini rate limits were hit. Pre-recorded presets bypass this, or set your own key in settings." :
-                      agenticError}
-                  </p>
-                  <button
-                    onClick={() => setShowSettingsModal(true)}
-                    className="mt-3 px-3 py-1.5 bg-transparent border border-[var(--line)] hover:bg-[var(--surface)] rounded-lg text-xs font-medium text-[var(--ink-2)] hover:text-[var(--ink)] transition"
-                  >
-                    Open settings
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <ElevatorShaft
-                    state={aState}
-                    numFloors={floors}
-                    numCars={numCars}
-                    accent="agent"
-                    onFloorClick={isInteractiveMode ? (fIdx) => setActiveSpawnFloor(fIdx) : null}
-                  />
-                  <ConsoleTerminal logRef={aLogRef} logs={aState.logs} title="Agent event log" />
-                </>
-              )}
-            </div>
-
+          {/* VS badge between the two teams */}
+          <div
+            className="hidden md:flex absolute left-1/2 top-10 -translate-x-1/2 z-10 w-14 h-14 rounded-full items-center justify-center bg-[var(--sun)] border-[3px] border-[var(--sun-deep)] text-xl font-extrabold text-[#5C3D00] [font-family:var(--display)] wiggle select-none"
+            style={{ boxShadow: '0 4px 0 rgba(122,82,0,0.3)' }}
+            aria-hidden="true"
+          >
+            {t('racer.vs')}
           </div>
 
-          {/* Telemetry metrics & Line Chart */}
-          <div className="panel p-4 flex flex-col gap-4">
-            <div className="flex justify-between items-center border-b border-[var(--line-soft)] pb-2.5">
-              <h3 className="text-sm font-medium text-[var(--ink)] m-0 flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-[var(--ink-3)]" />
-                Performance comparison
-              </h3>
-              <span className="text-xs text-[var(--ink-3)] font-mono">tick {currentTick}</span>
+          {/* Team Rule-Bot */}
+          <div className="panel panel-robot p-4 sm:p-5 flex flex-col" data-tour="robot">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-3xl select-none" aria-hidden="true">🤖</span>
+              <div>
+                <h3 className="text-lg m-0 text-[var(--robot-text)]">{t('racer.robot.name')}</h3>
+                <p className="text-xs font-bold text-[var(--ink-2)] m-0">{t('racer.robot.sub')}</p>
+              </div>
             </div>
 
-            {/* Delta-first stat strip: hairline dividers via gap-px over the line color */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-[var(--line-soft)] border border-[var(--line)] rounded-xl overflow-hidden">
-              <MetricComparisonCard
-                title="Average wait"
-                hVal={heuristicData ? getAverageWaitTimeAtTick(heuristicData.events, currentTick) : 0}
-                aVal={agenticData && !agenticError ? getAverageWaitTimeAtTick(agenticData.events, currentTick) : null}
-                unit="ticks"
-                betterWhen="lower"
-                icon={<Clock className="w-3.5 h-3.5" />}
-              />
-              <MetricComparisonCard
-                title="Car moves"
-                hVal={hState.rawEvents.filter(e => e.event_type === "CarMoved").length}
-                aVal={agenticData && !agenticError ? aState.rawEvents.filter(e => e.event_type === "CarMoved").length : null}
-                unit="moves"
-                betterWhen="lower"
-                icon={<Navigation className="w-3.5 h-3.5" />}
-              />
-              <MetricComparisonCard
-                title="Delivered"
-                hVal={hState.rawEvents.filter(e => e.event_type === "PassengerDeboarded").length}
-                aVal={agenticData && !agenticError ? aState.rawEvents.filter(e => e.event_type === "PassengerDeboarded").length : null}
-                unit="pax"
-                betterWhen="higher"
-                icon={<UserCheck className="w-3.5 h-3.5" />}
-              />
-              <MetricComparisonCard
-                title="Spawned"
-                hVal={hState.rawEvents.filter(e => e.event_type === "PassengerSpawned").length}
-                aVal={agenticData && !agenticError ? aState.rawEvents.filter(e => e.event_type === "PassengerSpawned").length : null}
-                unit="pax"
-                betterWhen="neutral"
-                icon={<Activity className="w-3.5 h-3.5" />}
-              />
-              <MetricComparisonCard
-                title="Energy"
-                hVal={heuristicData ? getEnergyAtTick(heuristicData, currentTick) : 0}
-                aVal={agenticData && !agenticError ? getEnergyAtTick(agenticData, currentTick) : null}
-                unit="kWh"
-                betterWhen="lower"
-                icon={<Zap className="w-3.5 h-3.5" />}
-              />
+            <ElevatorShaft
+              state={hState}
+              numFloors={floors}
+              numCars={numCars}
+              accent="robot"
+              onFloorClick={isInteractiveMode ? (fIdx) => setActiveSpawnFloor(fIdx) : null}
+            />
+            {advancedMode && <ConsoleTerminal logRef={hLogRef} logs={hState.logs} title={t('adv.logs')} />}
+          </div>
+
+          {/* Team AI Brain */}
+          <div className="panel panel-brain p-4 sm:p-5 flex flex-col relative" data-tour="brain">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-3xl select-none" aria-hidden="true">🧠</span>
+              <div>
+                <h3 className="text-lg m-0 text-[var(--brain-text)]">{t('racer.brain.name')}</h3>
+                <p className="text-xs font-bold text-[var(--ink-2)] m-0">{t('racer.brain.sub')}</p>
+              </div>
             </div>
 
-            {/* Line Chart */}
-            <div className="flex flex-col gap-2 mt-1">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-[var(--ink-3)]">Average wait over time</span>
-                <div className="flex gap-4">
-                  <span className="flex items-center gap-1.5 text-[var(--look-text)]">
-                    <span className="w-2.5 h-0.5 bg-[var(--look)] inline-block rounded"></span> LOOK
+            {isAgentThinking && (
+              <div className="absolute inset-0 bg-[rgba(255,246,229,0.9)] rounded-[18px] z-10 flex flex-col items-center justify-center text-center p-6">
+                <div className="text-4xl mb-2 floaty select-none" aria-hidden="true">🧠</div>
+                <div className="w-8 h-8 rounded-full border-[3px] border-t-[var(--brain)] border-r-transparent border-b-[var(--brain)] border-l-transparent animate-spin mb-3"></div>
+                <h4 className="text-base m-0 text-[var(--ink)]">{t('racer.thinking')}</h4>
+                <p className="text-xs font-bold text-[var(--ink-2)] mt-1 max-w-[220px] leading-relaxed">
+                  {t('racer.thinkingSub')}
+                </p>
+              </div>
+            )}
+
+            {agenticError ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-[var(--well)] border-2 border-dashed border-[var(--line)] rounded-2xl min-h-[300px]">
+                <span className="text-4xl mb-2 select-none" aria-hidden="true">😴</span>
+                <h4 className="text-base m-0 text-[var(--ink)]">{t('racer.skipped.title')}</h4>
+                <p className="text-xs font-bold text-[var(--ink-2)] mt-1 max-w-[280px] leading-relaxed">
+                  {agenticError.includes('RESOURCE_EXHAUSTED') ? t('racer.skipped.rateLimit') : agenticError}
+                </p>
+                <button
+                  onClick={() => setShowSettingsModal(true)}
+                  className="btn-chunky mt-3 px-3.5 py-2 text-xs font-extrabold text-[var(--ink-2)]"
+                >
+                  {t('racer.openSettings')}
+                </button>
+              </div>
+            ) : (
+              <>
+                <ElevatorShaft
+                  state={aState}
+                  numFloors={floors}
+                  numCars={numCars}
+                  accent="brain"
+                  onFloorClick={isInteractiveMode ? (fIdx) => setActiveSpawnFloor(fIdx) : null}
+                />
+                {advancedMode && <ConsoleTerminal logRef={aLogRef} logs={aState.logs} title={t('adv.logs')} />}
+              </>
+            )}
+          </div>
+
+        </div>
+
+        {/* The scoreboard */}
+        <Scoreboard
+          hWait={hWait} aWait={aWait}
+          hDelivered={hDelivered} aDelivered={aDelivered}
+          hEnergy={hEnergy} aEnergy={aEnergy}
+          hasBrain={hasBrain}
+        />
+
+        {/* Gentle pointer to live AI for curious visitors */}
+        {!advancedMode && !isInteractiveMode && (
+          <p className="text-xs font-bold text-[var(--ink-3)] text-center m-0 px-4">
+            💡 {t('live.note')}
+          </p>
+        )}
+
+        {/* Advanced: build-your-own race + the analytics chart */}
+        {advancedMode && (
+          <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 slide-up">
+            <div className="lg:col-span-4 panel p-4 sm:p-5 flex flex-col gap-4">
+              <h2 className="text-lg m-0 text-[var(--ink)]">
+                <span className="mr-1.5">🛠️</span>{t('adv.title')}
+              </h2>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-[var(--ink-2)]">{t('adv.profile')}</label>
+                <select
+                  value={profile}
+                  onChange={(e) => setProfile(e.target.value)}
+                  aria-label={t('adv.profile')}
+                  className="w-full bg-[var(--well)] border-2 border-[var(--border-ink)] rounded-xl px-2.5 py-2 text-sm font-semibold outline-none text-[var(--ink)]"
+                >
+                  <option value="UNIFORM">{t('adv.profile.uniform')}</option>
+                  <option value="DOWN_PEAK">{t('adv.profile.down')}</option>
+                  <option value="UP_PEAK">{t('adv.profile.up')}</option>
+                </select>
+              </div>
+
+              {[
+                { label: t('adv.arrival'), value: arrivalRate, set: setArrivalRate, min: 0.1, max: 1.0, step: 0.05 },
+                { label: t('adv.floors'), value: floors, set: setFloors, min: 5, max: 10, step: 1 },
+                { label: t('adv.cars'), value: numCars, set: setNumCars, min: 1, max: 6, step: 1 },
+                { label: t('adv.ticks'), value: maxTicks, set: setMaxTicks, min: 30, max: 100, step: 10 },
+              ].map(({ label, value, set, min, max, step }) => (
+                <div key={label} className="flex flex-col gap-1.5">
+                  <label className="text-xs font-extrabold text-[var(--ink-2)] flex justify-between">
+                    <span>{label}</span>
+                    <span className="mono font-bold text-[var(--ink)]">{value}</span>
+                  </label>
+                  <input
+                    type="range" min={min} max={max} step={step} aria-label={label}
+                    value={value} onChange={(e) => set(Number(e.target.value))}
+                    className="w-full accent-[#F5A623]"
+                  />
+                </div>
+              ))}
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-[var(--ink-2)]">{t('adv.seed')}</label>
+                <input
+                  type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value))} aria-label={t('adv.seed')}
+                  className="w-full bg-[var(--well)] border-2 border-[var(--border-ink)] rounded-xl px-2.5 py-2 text-sm outline-none text-[var(--ink)] mono"
+                />
+              </div>
+
+              <button
+                onClick={runCustomSimulation}
+                disabled={simulating}
+                className="btn-sun w-full mt-1 py-2.5 text-base font-extrabold disabled:opacity-50"
+              >
+                {simulating ? t('adv.running') : `🔴 ${t('adv.run')}`}
+              </button>
+              <p className="text-[11px] font-bold text-[var(--ink-3)] m-0 leading-snug">{t('adv.runHint')}</p>
+            </div>
+
+            <div className="lg:col-span-8 panel p-4 sm:p-5 flex flex-col gap-3">
+              <div className="flex justify-between items-center flex-wrap gap-2">
+                <h3 className="text-base m-0 text-[var(--ink)]">
+                  <span className="mr-1.5">📈</span>{t('adv.chart')}
+                </h3>
+                <div className="flex gap-4 text-xs font-extrabold">
+                  <span className="flex items-center gap-1.5 text-[var(--robot-text)]">
+                    <span className="w-3 h-1 bg-[var(--robot)] inline-block rounded"></span> {t('adv.chartRobot')}
                   </span>
-                  <span className="flex items-center gap-1.5 text-[var(--agent-text)]">
-                    <span className="w-2.5 h-0.5 border-t border-dashed border-[var(--agent)] inline-block"></span> Gemini
+                  <span className="flex items-center gap-1.5 text-[var(--brain-text)]">
+                    <span className="w-3 h-1 border-t-2 border-dashed border-[var(--brain)] inline-block"></span> {t('adv.chartBrain')}
                   </span>
                 </div>
               </div>
@@ -788,12 +888,50 @@ export default function App() {
                 maxWait={maxWaitVal}
                 hasAgentic={hasAgenticSeries}
               />
+
+              <div className="grid grid-cols-2 gap-3 mt-1">
+                <div className="bg-[var(--well)] rounded-xl p-3 text-center">
+                  <div className="text-[11px] font-extrabold text-[var(--ink-3)]">🚡 {t('adv.moves')}</div>
+                  <div className="text-sm font-extrabold mt-0.5">
+                    <span className="text-[var(--robot-text)]">{hState.rawEvents.filter(e => e.event_type === "CarMoved").length}</span>
+                    <span className="text-[var(--ink-3)] mx-1.5">·</span>
+                    <span className="text-[var(--brain-text)]">{hasBrain ? aState.rawEvents.filter(e => e.event_type === "CarMoved").length : '—'}</span>
+                  </div>
+                </div>
+                <div className="bg-[var(--well)] rounded-xl p-3 text-center">
+                  <div className="text-[11px] font-extrabold text-[var(--ink-3)]">🧍 {t('adv.spawned')}</div>
+                  <div className="text-sm font-extrabold mt-0.5">
+                    <span className="text-[var(--robot-text)]">{hState.rawEvents.filter(e => e.event_type === "PassengerSpawned").length}</span>
+                    <span className="text-[var(--ink-3)] mx-1.5">·</span>
+                    <span className="text-[var(--brain-text)]">{hasBrain ? aState.rawEvents.filter(e => e.event_type === "PassengerSpawned").length : '—'}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          </section>
+        )}
 
-        </div>
+      </main>
 
-      </div>
+      {/* Winner celebration */}
+      {showWinner && (
+        <WinnerBanner
+          winner={hasBrain ? winner : 'robot'}
+          pct={winnerPct}
+          onRaceAgain={() => {
+            handleRestart();
+            setRaceStarted(true);
+            requestAnimationFrame(() => setIsPlaying(true));
+          }}
+          onClose={() => setWinnerDismissed(true)}
+        />
+      )}
+
+      {/* First-visit guided tour */}
+      {showTour && <TourOverlay onFinish={() => setShowTour(false)} />}
+
+      {/* How it works */}
+      {showHowItWorks && <HowItWorksModal onClose={() => setShowHowItWorks(false)} />}
 
       {/* Settings Panel Modal */}
       {showSettingsModal && (
@@ -812,6 +950,7 @@ export default function App() {
           setOllamaModelId={setOllamaModelId}
           carSpeeds={carSpeeds}
           setCarSpeeds={setCarSpeeds}
+          onClose={() => setShowSettingsModal(false)}
         />
       )}
 
@@ -826,12 +965,10 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="mt-12 py-4 border-t border-[var(--line)] text-xs text-[var(--ink-3)] flex justify-between items-center">
-        <span>Discrete-event elevator simulator</span>
-        <span>Built with Strands, Gemini and Gemma</span>
+      <footer className="mt-12 py-4 border-t-2 border-[var(--line)] text-xs font-bold text-[var(--ink-3)] flex justify-between items-center flex-wrap gap-2">
+        <span>{t('footer.left')}</span>
+        <span>{t('footer.right')}</span>
       </footer>
     </div>
   );
 }
-
-
