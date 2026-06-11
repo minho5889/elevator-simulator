@@ -20,13 +20,13 @@ class TrafficGenerator:
         Args:
             num_floors: Total number of floors in the building
             arrival_rate: Probability of passenger spawn per tick (0.0 to 1.0)
-            profile: Traffic shape name: "UNIFORM", "DOWN_PEAK", or "UP_PEAK"
+            profile: Traffic shape name: "UNIFORM", "DOWN_PEAK", "UP_PEAK", or "LUNCH"
         """
         self.num_floors = num_floors
         self.arrival_rate = arrival_rate
-        
+
         profile_upper = profile.upper()
-        if profile_upper not in ("UNIFORM", "DOWN_PEAK", "UP_PEAK"):
+        if profile_upper not in ("UNIFORM", "DOWN_PEAK", "UP_PEAK", "LUNCH"):
             raise ValueError(f"Unknown traffic profile: {profile}")
         self.profile = profile_upper
         
@@ -67,6 +67,25 @@ class TrafficGenerator:
             # Evening peak: passengers spawn at the lobby (floor 0) heading to upper floors
             source = 0
             target = rng.randint(1, self.num_floors - 1)
+
+        elif self.profile == "LUNCH":
+            # Lunch peak: bidirectional with a heavy lobby (incoming) component
+            # [Report §3.3 / §2.3]. Three streams share the floor:
+            #   ~40% outgoing  (floor -> lobby, people leaving for lunch)
+            #   ~40% incoming  (lobby -> floor, people returning / arriving)
+            #   ~20% interfloor (floor -> different floor, background two-way)
+            # The incoming stream is what distinguishes lunch from a pure
+            # DOWN_PEAK and is the regime classical zoning struggles with.
+            roll = rng.random()
+            if roll < 0.4:
+                source = rng.randint(1, self.num_floors - 1)
+                target = 0
+            elif roll < 0.8:
+                source = 0
+                target = rng.randint(1, self.num_floors - 1)
+            else:
+                source = rng.randint(0, self.num_floors - 1)
+                target = rng.choice([f for f in range(self.num_floors) if f != source])
 
         passenger = Passenger(
             passenger_id=passenger_id,

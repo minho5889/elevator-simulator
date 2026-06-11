@@ -59,6 +59,48 @@ def test_up_peak_traffic_profile():
         assert p.direction == 1  # UP
 
 
+def test_lunch_traffic_profile():
+    """Verify lunch profile is bidirectional with a heavy lobby component.
+
+    Per Report §3.3 the lunch regime mixes outgoing (floor->lobby), incoming
+    (lobby->floor), and interfloor streams — so over many samples we expect to
+    see all three, and the lobby (floor 0) to dominate as both a source and a
+    target (the incoming component is what distinguishes lunch from down-peak).
+    """
+    rng = random.Random(7)
+    tg = TrafficGenerator(num_floors=5, arrival_rate=1.0, profile="LUNCH")
+
+    saw_outgoing = saw_incoming = saw_interfloor = False
+    lobby_touch = 0
+    total = 0
+
+    for tick in range(1, 600):
+        passengers = tg.generate(tick, rng)
+        assert len(passengers) == 1
+        p = passengers[0]
+        total += 1
+
+        assert 0 <= p.source_floor < 5
+        assert 0 <= p.target_floor < 5
+        assert p.source_floor != p.target_floor
+
+        if p.target_floor == 0 and p.source_floor != 0:
+            saw_outgoing = True
+        elif p.source_floor == 0 and p.target_floor != 0:
+            saw_incoming = True
+        else:
+            saw_interfloor = True
+
+        if p.source_floor == 0 or p.target_floor == 0:
+            lobby_touch += 1
+
+    assert saw_outgoing, "lunch profile never produced an outgoing (floor->lobby) trip"
+    assert saw_incoming, "lunch profile never produced an incoming (lobby->floor) trip"
+    assert saw_interfloor, "lunch profile never produced an interfloor trip"
+    # Lobby should be involved in the clear majority of trips (~80% by design).
+    assert lobby_touch / total > 0.6
+
+
 def test_traffic_generator_determinism():
     """Verify that two generators with identically seeded RNGs produce identical sequences."""
     # Seed 1

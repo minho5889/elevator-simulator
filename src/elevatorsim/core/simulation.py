@@ -43,6 +43,8 @@ class Simulation:
         verbose: bool = True,
         *,
         extra_cars: Optional[List[Car]] = None,
+        stop_ticks: int = 2,
+        transfer_ticks: int = 0,
     ) -> None:
         """
         Initialize the simulation.
@@ -58,6 +60,15 @@ class Simulation:
             verbose: If True, prints event traces to stdout
             extra_cars: Additional car instances for multi-car banks. If supplied
                 the bank consists of ``[car] + extra_cars``.
+            stop_ticks: Door/stop penalty per stop in ticks (``t_s`` in the RTT
+                model [Report §6, §8]). The legacy default of 2 reproduces the
+                Tier 0-2 fixed-tick contract exactly.
+            transfer_ticks: Per-passenger transfer time in ticks (``t_p``). The
+                legacy default of 0 means boarding is instantaneous — Tier 0-2
+                behaviour. Set > 0 for the Tier-3 "skyscraper" time-cost model,
+                where each boarding/alighting passenger lengthens the stop. This
+                is the term destination dispatch exists to reduce; with it at 0
+                the simulator understates destination dispatch [Report §8].
         """
         self.building = building
         self.car = car  # legacy accessor – always points to cars[0]
@@ -65,6 +76,9 @@ class Simulation:
         self.metrics = metrics_collector
         self.traffic_generator = traffic_generator
         self.verbose = verbose
+        # Tier-3 time-cost model (t_s, t_p). Defaults preserve the legacy contract.
+        self.stop_ticks = stop_ticks
+        self.transfer_ticks = transfer_ticks
 
         # Multi-car bank: cars list always starts with the primary ``car``
         self.cars: List[Car] = [car]
@@ -164,7 +178,7 @@ class Simulation:
                 # Check if arrived
                 if car.current_position == float(car.target_floor):
                     self.emit(CarArrived(self.current_time, car.car_id, car.current_floor))
-                    car.open_doors()
+                    car.open_doors(self.stop_ticks)
                     self.emit(DoorOpened(self.current_time, car.car_id, car.current_floor))
 
         # 4. Handle boarding and deboarding if doors are open
@@ -194,6 +208,17 @@ class Simulation:
                         ))
                     break  # Car is full
             self.building.remove_boarded(car.current_floor, boarded)
+
+            # Tier-3 time-cost: lengthen the stop by t_p per transferring passenger
+            # [Report §6, §8]. Transfers resolve in the first open tick (deboard()
+            # empties arrivals and the board loop seats everyone who fits in one
+            # pass), so this charge fires once per stop. When transfer_ticks == 0
+            # (legacy Tier 0-2) the branch is skipped entirely and timing is
+            # byte-identical.
+            if self.transfer_ticks > 0:
+                n_transfers = len(deboarded) + len(boarded)
+                if n_transfers > 0:
+                    car.door_timer += self.transfer_ticks * n_transfers
 
     def _dispatch_idle_cars(self) -> None:
         """Query the dispatcher for idle cars that need a target.
@@ -225,7 +250,7 @@ class Simulation:
                             self.emit(CarDispatched(self.current_time, car_id, target))
                             # If target is current floor, open doors immediately
                             if car.current_floor == car.target_floor:
-                                car.open_doors()
+                                car.open_doors(self.stop_ticks)
                                 self.emit(DoorOpened(self.current_time, car.car_id, car.current_floor))
         else:
             # Legacy single-car dispatcher
@@ -241,7 +266,7 @@ class Simulation:
                         self.emit(CarDispatched(self.current_time, car.car_id, target))
                         # If target is current floor, open doors immediately
                         if car.current_floor == car.target_floor:
-                            car.open_doors()
+                            car.open_doors(self.stop_ticks)
                             self.emit(DoorOpened(self.current_time, car.car_id, car.current_floor))
 
     def step(self) -> None:
