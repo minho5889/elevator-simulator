@@ -1,42 +1,43 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=Schibsted+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 :root {
-  /* Design System Colors - Premium Obsidian / Slate Dark Mode */
-  --bg-darker: #05070f;
-  --bg-primary: #0b0f19;
-  --bg-secondary: #121826;
-  --bg-tertiary: #1f293d;
-  
-  --border-color: rgba(255, 255, 255, 0.07);
-  --border-glow: rgba(255, 255, 255, 0.12);
-  
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  
-  /* Accent Colors: Cyan/Blue (LOOK) vs Violet/Purple (Gemini Agent) */
-  --look-cyan: #06b6d4;
-  --look-cyan-border: rgba(6, 182, 212, 0.4);
-  --look-cyan-glow: rgba(6, 182, 212, 0.15);
-  
-  --agent-violet: #a78bfa;
-  --agent-violet-border: rgba(167, 139, 250, 0.4);
-  --agent-violet-glow: rgba(167, 139, 250, 0.15);
-  
-  --success: #10b981;
-  --success-glow: rgba(16, 185, 129, 0.15);
-  --warning: #f59e0b;
-  --error: #ef4444;
+  /* Design system — "lab instrument on warm paper".
+     Ivory page, white surfaces, ink text. Color is reserved for meaning:
+     sage = LOOK heuristic, coral = Gemini agent. */
+  --paper: #FAF9F5;
+  --surface: #FFFFFF;
+  --well: #F4F2EC;          /* recessed areas: shafts, consoles, inputs */
 
-  --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --heading: 'Outfit', sans-serif;
+  --line: #E4E1D7;          /* hairline card borders */
+  --line-soft: #EDEAE0;     /* inner dividers, floor lines */
+
+  --ink: #2A2723;           /* primary text */
+  --ink-2: #57534B;         /* secondary text */
+  --ink-3: #68645C;         /* hints — minimum tier, AA (4.5+) even on --well */
+
+  /* LOOK heuristic = sage */
+  --look: #6FA28D;
+  --look-text: #2F5D4C;
+  --look-fill: #DDEAE3;
+
+  /* Gemini agent = coral (the bookcloth nod) */
+  --agent: #D97757;
+  --agent-text: #8A3D22;
+  --agent-fill: #F7E2D8;
+
+  --error-text: #A32D2D;
+  --error-fill: #FCEBEB;
+  --warn-text: #854F0B;
+
+  --sans: 'Schibsted Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --display: 'Newsreader', Georgia, serif;
   --mono: 'JetBrains Mono', monospace;
 
   font-family: var(--sans);
-  color-scheme: dark;
-  color: var(--text-primary);
-  background-color: var(--bg-darker);
+  color-scheme: light;
+  color: var(--ink);
+  background-color: var(--paper);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -45,81 +46,72 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  background-color: var(--bg-darker);
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.03) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.03) 0px, transparent 50%);
+  background-color: var(--paper);
   overflow-x: hidden;
 }
 
-/* Glassmorphism Panel styles */
-.glass-panel {
-  background: rgba(18, 24, 38, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-color);
+::selection {
+  background: var(--agent-fill);
+}
+
+/* Flat surface card — replaces the old glassmorphism panel */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.glass-panel:hover {
-  border-color: var(--border-glow);
-}
-
-/* Scrollbar customization */
+/* Scrollbar: quiet, warm */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: #D8D4C9;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: #C4C0B4;
 }
 
-/* Elevator Shaft Animations */
-@keyframes pulseGlow {
-  0% { opacity: 0.3; }
-  50% { opacity: 0.6; }
-  100% { opacity: 0.3; }
+@keyframes pulseSoft {
+  0% { opacity: 0.35; }
+  50% { opacity: 1; }
+  100% { opacity: 0.35; }
 }
 
 @keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
+  from { transform: translateY(12px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
-@keyframes doorPulse {
-  0%, 100% { border-color: rgba(255, 255, 255, 0.2); }
-  50% { border-color: rgba(255, 255, 255, 0.6); }
-}
-
 .pulse-glow {
-  animation: pulseGlow 2s infinite ease-in-out;
+  animation: pulseSoft 2s infinite ease-in-out;
 }
 
 .slide-up {
   animation: slideUp 0.4s ease-out forwards;
 }
 
-/* Typography styles */
+/* Typography: serif display reserved for the page title via .display */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--heading);
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-family: var(--sans);
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
-/* Layout helpers */
+.display {
+  font-family: var(--display);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
 .container {
   width: 100%;
   max-width: 1400px;
@@ -140,16 +132,15 @@ h1, h2, h3, h4, h5, h6 {
   animation: spin 1s linear infinite;
 }
 
-/* Keyboard focus: visible cyan focus ring for interactive controls (a11y).
-   Mouse clicks don't trigger :focus-visible, so this stays clean for pointer users. */
+/* Keyboard focus: coral ring, visible on paper (a11y). Mouse clicks don't
+   trigger :focus-visible, so pointer users stay clean. */
 :focus-visible {
-  outline: 2px solid var(--look-cyan);
+  outline: 2px solid var(--agent);
   outline-offset: 2px;
   border-radius: 6px;
 }
 
-/* Respect users who prefer reduced motion: neutralize the ambient/looping
-   animations while keeping the interface fully functional. */
+/* Respect users who prefer reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

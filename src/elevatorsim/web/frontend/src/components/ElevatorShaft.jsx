@@ -1,7 +1,13 @@
 // src/elevatorsim/web/frontend/src/components/ElevatorShaft.jsx
 import React from 'react';
 
-export default function ElevatorShaft({ state, numFloors, numCars = 1, accentColor, onFloorClick }) {
+const TONES = {
+  look: { line: 'var(--look)', text: 'var(--look-text)', fill: 'var(--look-fill)' },
+  agent: { line: 'var(--agent)', text: 'var(--agent-text)', fill: 'var(--agent-fill)' },
+};
+
+export default function ElevatorShaft({ state, numFloors, numCars = 1, accent = 'look', onFloorClick }) {
+  const tones = TONES[accent] || TONES.look;
   const floorIndices = Array.from({ length: numFloors }, (_, i) => numFloors - 1 - i);
   const carIds = Object.keys(state.cars || {});
 
@@ -18,30 +24,27 @@ export default function ElevatorShaft({ state, numFloors, numCars = 1, accentCol
   const carEntries = Object.entries(carsData);
 
   return (
-    <div className="flex-1 flex bg-slate-950/60 border border-[var(--border-color)] rounded-lg p-3 min-h-[360px] relative">
-      {/* Floor boundaries and queue details */}
+    <div className="flex-1 flex bg-[var(--well)] border border-[var(--line-soft)] rounded-lg p-3 min-h-[360px] relative">
+      {/* Floor rows and waiting queues */}
       <div className="flex-1 flex flex-col justify-between">
         {floorIndices.map(fIdx => {
           const waitingQueue = state.floorQueues[fIdx] || [];
 
           return (
-            <div 
-              key={fIdx} 
+            <div
+              key={fIdx}
               onClick={() => onFloorClick && onFloorClick(fIdx)}
-              className={`flex justify-between items-center py-2 h-10 border-b border-dashed border-slate-900 last:border-b-0 px-2 rounded transition-colors ${onFloorClick ? 'cursor-pointer hover:bg-slate-900/40' : ''}`}
+              className={`flex justify-between items-center py-2 h-10 border-b border-dashed border-[var(--line-soft)] last:border-b-0 px-2 rounded transition-colors ${onFloorClick ? 'cursor-pointer hover:bg-[var(--surface)]' : ''}`}
             >
-              <div className="flex items-center gap-1">
-                <span className={`text-xs font-mono font-bold w-5 h-5 flex items-center justify-center rounded bg-slate-900 text-slate-500`}>
-                  {fIdx}
-                </span>
-                <span className="text-[10px] text-slate-600 uppercase font-bold tracking-wider">Floor</span>
-              </div>
+              <span className="text-[11px] font-mono text-[var(--ink-3)] w-5 text-center" aria-label={`Floor ${fIdx}`}>
+                {fIdx}
+              </span>
 
-              <div className="flex gap-1.5 max-w-[150px] overflow-hidden justify-end">
+              <div className="flex gap-1.5 max-w-[150px] overflow-hidden justify-end items-center">
                 {waitingQueue.map(p => (
-                  <span 
-                    key={p.id} 
-                    className="text-[9px] font-mono px-1.5 py-0.5 rounded font-medium bg-slate-900 border border-slate-800 text-slate-400"
+                  <span
+                    key={p.id}
+                    className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--surface)] border border-[var(--line)] text-[var(--ink-2)]"
                     title={`Passenger ${p.id} heading to floor ${p.target}`}
                   >
                     {p.id}→{p.target}
@@ -53,38 +56,30 @@ export default function ElevatorShaft({ state, numFloors, numCars = 1, accentCol
         })}
       </div>
 
-      {/* Vertical Tracks - one per car */}
+      {/* Vertical tracks — one per car */}
       {carEntries.map(([carId, carState], idx) => {
         const carFloor = carState.floor || 0;
         const carBottomPercentage = (carFloor / Math.max(numFloors - 1, 1)) * 82;
+        const doorsOpen = carState.doorState === 'OPEN';
 
         return (
-          <div key={carId} className={`w-14 flex justify-center relative ${idx > 0 ? 'border-l border-slate-900/50' : 'border-l border-slate-900'}`}>
-            <div 
+          <div key={carId} className={`w-14 flex justify-center relative border-l ${idx > 0 ? 'border-[var(--line-soft)]' : 'border-[var(--line)]'}`}>
+            <div
               className="absolute w-11 h-10 rounded-lg flex flex-col justify-center items-center border transition-all duration-300 ease-in-out"
-              style={{ 
+              style={{
                 bottom: `${carBottomPercentage + 2}%`,
-                borderColor: accentColor,
-                background: `radial-gradient(ellipse at center, ${accentColor}12 0%, #1e293b 100%)`,
-                boxShadow: `0 0 12px 0 ${accentColor}24`
+                borderColor: tones.line,
+                background: tones.fill,
               }}
+              title={`Car ${carId} — doors ${doorsOpen ? 'open' : 'closed'}`}
             >
-              <div className="flex w-full justify-between px-1 absolute top-0.5 text-[7px] text-slate-400 font-bold uppercase tracking-wide">
-                <span>Car</span>
-                <span style={{ color: accentColor }}>{carId}</span>
-              </div>
-
-              <span className="text-xs font-mono font-bold text-white mt-2">
-                {(carState.onboardPassengers || []).length}
+              <span className="text-[11px] font-mono font-semibold" style={{ color: tones.text }}>
+                {carId}·{(carState.onboardPassengers || []).length}
               </span>
 
-              <div 
-                className="w-full flex justify-between absolute bottom-0.5 px-1.5"
-                style={{ animation: carState.doorState === 'OPEN' ? 'doorPulse 1.5s infinite' : 'none' }}
-              >
-                <span className={`w-1 h-2 rounded-sm ${carState.doorState === 'OPEN' ? 'bg-emerald-400' : 'bg-slate-700'}`}></span>
-                <span className="text-[6px] font-bold text-slate-500 uppercase">{carState.doorState}</span>
-                <span className={`w-1 h-2 rounded-sm ${carState.doorState === 'OPEN' ? 'bg-emerald-400' : 'bg-slate-700'}`}></span>
+              <div className="w-full flex justify-center gap-1 absolute bottom-1 px-1.5">
+                <span className="w-2 h-0.5 rounded-sm" style={{ background: doorsOpen ? tones.line : '#C9C5BA' }}></span>
+                <span className="w-2 h-0.5 rounded-sm" style={{ background: doorsOpen ? tones.line : '#C9C5BA' }}></span>
               </div>
             </div>
           </div>

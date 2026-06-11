@@ -402,18 +402,17 @@ export default function App() {
   return (
     <div className="container slide-up">
       {/* Header */}
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-[var(--border-color)]">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-6 pb-5 border-b border-[var(--line)]">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] m-0 flex flex-wrap items-center gap-2">
-            <Activity className="text-cyan-500 w-7 h-7 sm:w-8 sm:h-8" />
-            <span>Elevator Simulator</span>
-            <span className="text-xs bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded-full font-normal">A/B Testing Dashboard</span>
+          <h1 className="display text-2xl sm:text-3xl text-[var(--ink)] m-0 flex flex-wrap items-baseline gap-3">
+            <span>Elevator simulator</span>
+            <span className="[font-family:var(--sans)] text-xs bg-[var(--well)] text-[var(--ink-2)] border border-[var(--line)] px-2.5 py-0.5 rounded-full">A/B dashboard</span>
           </h1>
-          <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">Comparing LOOK Heuristic vs. Gemini-3.5-Flash Strands Agent</p>
+          <p className="text-xs sm:text-sm text-[var(--ink-2)] mt-1.5">LOOK heuristic vs Gemini agent, side by side</p>
         </div>
-        <button 
+        <button
           onClick={() => setShowSettingsModal(true)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-slate-900 text-slate-300 hover:text-white hover:border-slate-600 transition self-stretch sm:self-auto justify-center"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--line)] bg-transparent text-sm text-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--well)] transition self-stretch sm:self-auto justify-center"
         >
           <Settings className="w-4 h-4" />
           Settings
@@ -427,113 +426,113 @@ export default function App() {
         <div className="lg:col-span-3 flex flex-col gap-6">
           
           {/* Preset scenarios */}
-          <div className="glass-panel p-4 flex flex-col gap-3">
-            <h2 className="text-sm uppercase tracking-wider text-[var(--text-muted)] font-bold m-0">Presets</h2>
-            <div className="flex flex-col gap-2">
-              <button 
+          <div className="panel p-4 flex flex-col gap-3">
+            <h2 className="text-xs font-medium text-[var(--ink-3)] m-0">Presets</h2>
+            <div className="flex flex-col gap-1">
+              <button
                 onClick={() => handlePresetChange('quiet_day')}
-                className={`text-left px-3 py-2 rounded-lg text-sm font-medium transition ${activePreset === 'quiet_day' ? 'bg-cyan-500/15 border border-cyan-500/40 text-cyan-400' : 'bg-slate-900 border border-transparent text-slate-400 hover:bg-slate-800'}`}
+                className={`text-left px-3 py-2 rounded-lg text-sm transition ${activePreset === 'quiet_day' ? 'bg-[var(--well)] border border-[var(--line)] text-[var(--ink)] font-medium' : 'bg-transparent border border-transparent text-[var(--ink-2)] hover:bg-[var(--well)]'}`}
               >
-                Uniform Quiet Day
+                Uniform quiet day
               </button>
-              <button 
+              <button
                 onClick={() => handlePresetChange('morning_rush')}
-                className={`text-left px-3 py-2 rounded-lg text-sm font-medium transition ${activePreset === 'morning_rush' ? 'bg-cyan-500/15 border border-cyan-500/40 text-cyan-400' : 'bg-slate-900 border border-transparent text-slate-400 hover:bg-slate-800'}`}
+                className={`text-left px-3 py-2 rounded-lg text-sm transition ${activePreset === 'morning_rush' ? 'bg-[var(--well)] border border-[var(--line)] text-[var(--ink)] font-medium' : 'bg-transparent border border-transparent text-[var(--ink-2)] hover:bg-[var(--well)]'}`}
               >
-                Morning Lobby Rush
+                Morning lobby rush
               </button>
-              <button 
+              <button
                 onClick={() => handlePresetChange('evening_rush')}
-                className={`text-left px-3 py-2 rounded-lg text-sm font-medium transition ${activePreset === 'evening_rush' ? 'bg-cyan-500/15 border border-cyan-500/40 text-cyan-400' : 'bg-slate-900 border border-transparent text-slate-400 hover:bg-slate-800'}`}
+                className={`text-left px-3 py-2 rounded-lg text-sm transition ${activePreset === 'evening_rush' ? 'bg-[var(--well)] border border-[var(--line)] text-[var(--ink)] font-medium' : 'bg-transparent border border-transparent text-[var(--ink-2)] hover:bg-[var(--well)]'}`}
               >
-                Evening Departure Rush
+                Evening departure rush
               </button>
             </div>
           </div>
 
           {/* Configuration Parameters */}
-          <div className="glass-panel p-4 flex flex-col gap-4">
-            <h2 className="text-sm uppercase tracking-wider text-[var(--text-muted)] font-bold m-0">Simulation Config</h2>
-            
+          <div className="panel p-4 flex flex-col gap-4">
+            <h2 className="text-xs font-medium text-[var(--ink-3)] m-0">Simulation config</h2>
+
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--text-secondary)]">Traffic Profile</label>
-              <select 
-                value={profile} 
+              <label className="text-xs text-[var(--ink-2)]">Traffic profile</label>
+              <select
+                value={profile}
                 onChange={(e) => setProfile(e.target.value)}
                 aria-label="Traffic profile"
-                className="w-full bg-slate-900 border border-[var(--border-color)] rounded-lg px-2.5 py-1.5 text-sm outline-none"
+                className="w-full bg-[var(--well)] border border-[var(--line)] rounded-lg px-2.5 py-1.5 text-sm outline-none text-[var(--ink)]"
               >
-                <option value="UNIFORM">UNIFORM</option>
-                <option value="DOWN_PEAK">DOWN_PEAK (Morning)</option>
-                <option value="UP_PEAK">UP_PEAK (Evening)</option>
+                <option value="UNIFORM">Uniform</option>
+                <option value="DOWN_PEAK">Down-peak (morning)</option>
+                <option value="UP_PEAK">Up-peak (evening)</option>
               </select>
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--text-secondary)] flex justify-between">
-                <span>Arrival Probability</span>
-                <span className="font-semibold">{arrivalRate}</span>
+              <label className="text-xs text-[var(--ink-2)] flex justify-between">
+                <span>Arrival probability</span>
+                <span className="font-medium font-mono text-[var(--ink)]">{arrivalRate}</span>
               </label>
-              <input 
+              <input
                 type="range" min="0.1" max="1.0" step="0.05" aria-label="Arrival probability"
                 value={arrivalRate} onChange={(e) => setArrivalRate(Number(e.target.value))}
-                className="w-full accent-cyan-500"
+                className="w-full accent-[#2A2723]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--text-secondary)] flex justify-between">
-                <span>Floors (Shaft Height)</span>
-                <span className="font-semibold">{floors}</span>
+              <label className="text-xs text-[var(--ink-2)] flex justify-between">
+                <span>Floors</span>
+                <span className="font-medium font-mono text-[var(--ink)]">{floors}</span>
               </label>
-              <input 
+              <input
                 type="range" min="5" max="10" step="1" aria-label="Number of floors"
                 value={floors} onChange={(e) => setFloors(Number(e.target.value))}
-                className="w-full accent-cyan-500"
+                className="w-full accent-[#2A2723]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--text-secondary)] flex justify-between">
-                <span>Elevator Cars</span>
-                <span className="font-semibold">{numCars}</span>
+              <label className="text-xs text-[var(--ink-2)] flex justify-between">
+                <span>Elevator cars</span>
+                <span className="font-medium font-mono text-[var(--ink)]">{numCars}</span>
               </label>
-              <input 
+              <input
                 type="range" min="1" max="6" step="1" aria-label="Number of elevator cars"
                 value={numCars} onChange={(e) => setNumCars(Number(e.target.value))}
-                className="w-full accent-cyan-500"
+                className="w-full accent-[#2A2723]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--text-secondary)] flex justify-between">
-                <span>Max Ticks</span>
-                <span className="font-semibold">{maxTicks}</span>
+              <label className="text-xs text-[var(--ink-2)] flex justify-between">
+                <span>Max ticks</span>
+                <span className="font-medium font-mono text-[var(--ink)]">{maxTicks}</span>
               </label>
-              <input 
+              <input
                 type="range" min="30" max="100" step="10" aria-label="Maximum ticks"
                 value={maxTicks} onChange={(e) => setMaxTicks(Number(e.target.value))}
-                className="w-full accent-cyan-500"
+                className="w-full accent-[#2A2723]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--text-secondary)]">RNG Seed</label>
-              <input 
+              <label className="text-xs text-[var(--ink-2)]">RNG seed</label>
+              <input
                 type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value))} aria-label="RNG seed"
-                className="w-full bg-slate-900 border border-[var(--border-color)] rounded-lg px-2.5 py-1.5 text-sm outline-none"
+                className="w-full bg-[var(--well)] border border-[var(--line)] rounded-lg px-2.5 py-1.5 text-sm outline-none text-[var(--ink)] font-mono"
               />
             </div>
 
-            <button 
+            <button
               onClick={runCustomSimulation}
               disabled={simulating}
-              className="w-full mt-2 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-slate-950 font-bold py-2 rounded-lg text-sm transition disabled:opacity-50"
+              className="w-full mt-2 bg-[var(--ink)] hover:bg-[#3C3833] text-[var(--paper)] font-medium py-2 rounded-lg text-sm transition disabled:opacity-50"
             >
-              {simulating ? 'Simulating...' : 'Run Simulation'}
+              {simulating ? 'Simulating…' : 'Run simulation'}
             </button>
             {simError && (
-              <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+              <p className="text-xs text-[var(--error-text)] flex items-center gap-1 mt-1">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 {simError}
               </p>
@@ -545,12 +544,12 @@ export default function App() {
         <div className="lg:col-span-9 flex flex-col gap-6">
 
           {/* Playback Control Bar */}
-          <div className="glass-panel p-4 flex flex-wrap gap-4 items-center justify-between">
+          <div className="panel p-4 flex flex-wrap gap-4 items-center justify-between">
             <div className="flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => setIsPlaying(!isPlaying)}
                 aria-label={isPlaying ? 'Pause playback' : 'Play playback'}
-                className="p-2 rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition"
+                className="p-2 rounded-full bg-[var(--ink)] hover:bg-[#3C3833] text-[var(--paper)] transition"
               >
                 {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
               </button>
@@ -571,8 +570,8 @@ export default function App() {
                     initWebSocket();
                   }
                 }}
-                className="p-2 rounded-full border border-[var(--border-color)] bg-slate-900 text-slate-300 hover:text-white hover:border-slate-600 transition"
-                title="Reset Simulation"
+                className="p-2 rounded-full border border-[var(--line)] bg-transparent text-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--well)] transition"
+                title="Reset simulation"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
@@ -589,8 +588,8 @@ export default function App() {
                     }
                   }
                 }}
-                className="p-2 rounded-full border border-[var(--border-color)] bg-slate-900 text-slate-300 hover:text-white hover:border-slate-600 transition"
-                title="Manual Tick Step"
+                className="p-2 rounded-full border border-[var(--line)] bg-transparent text-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--well)] transition"
+                title="Step one tick"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -598,24 +597,24 @@ export default function App() {
 
             {/* Scrubber timeline */}
             <div className="flex-1 min-w-[200px] flex items-center gap-3">
-              <span className="text-xs font-semibold font-mono text-cyan-400 w-8">{String(currentTick).padStart(3, '0')}</span>
-              <input 
+              <span className="text-xs font-medium font-mono text-[var(--ink)] w-8">{String(currentTick).padStart(3, '0')}</span>
+              <input
                 type="range" min="0" max={maxTicks} aria-label="Timeline scrubber"
                 value={currentTick} onChange={(e) => { setCurrentTick(Number(e.target.value)); setIsPlaying(false); }}
                 disabled={isInteractiveMode}
-                className="flex-1 accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer disabled:opacity-50"
+                className="flex-1 accent-[#2A2723] h-1.5 cursor-pointer disabled:opacity-50"
               />
-              <span className="text-xs font-semibold font-mono text-slate-500 w-8">{String(maxTicks).padStart(3, '0')}</span>
+              <span className="text-xs font-mono text-[var(--ink-3)] w-8">{String(maxTicks).padStart(3, '0')}</span>
             </div>
 
             {/* Speed controller */}
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">Speed:</span>
-              <select 
-                value={playbackSpeed} 
+              <span className="text-xs text-[var(--ink-3)]">Speed</span>
+              <select
+                value={playbackSpeed}
                 onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
                 aria-label="Playback speed"
-                className="bg-slate-900 border border-[var(--border-color)] rounded-lg px-2 py-1 text-xs outline-none"
+                className="bg-[var(--well)] border border-[var(--line)] rounded-lg px-2 py-1 text-xs outline-none text-[var(--ink)]"
               >
                 <option value={1000}>0.5x</option>
                 <option value={500}>1.0x</option>
@@ -627,16 +626,16 @@ export default function App() {
 
           {/* Interactive Spawning Helper Banner */}
           {isInteractiveMode && (
-            <div className="glass-panel px-4 py-2 flex justify-between items-center bg-cyan-500/5 border border-cyan-500/20 rounded-lg text-xs slide-up">
-              <span className="flex items-center gap-2 text-cyan-400 font-medium">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 pulse-glow"></span>
-                Interactive Mode Active: Click any floor row in the shafts to spawn passengers manually.
+            <div className="px-4 py-2 flex justify-between items-center bg-[var(--look-fill)] border border-[var(--look)] rounded-lg text-xs slide-up">
+              <span className="flex items-center gap-2 text-[var(--look-text)] font-medium">
+                <span className="w-2 h-2 rounded-full bg-[var(--look)] pulse-glow"></span>
+                Interactive mode — click any floor row to spawn passengers.
               </span>
               <button
                 onClick={handleRandomSpawn}
-                className="px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/50 text-cyan-400 font-bold rounded text-[10px] uppercase tracking-wider transition"
+                className="px-2.5 py-1 bg-[var(--surface)] hover:bg-white border border-[var(--look)] text-[var(--look-text)] font-medium rounded-md text-[11px] transition"
               >
-                Spawn Random Passenger
+                Spawn random passenger
               </button>
             </div>
           )}
@@ -645,71 +644,71 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* LOOK Heuristic Shaft */}
-            <div className="glass-panel p-4 flex flex-col border-t-2 border-t-[var(--look-cyan)]">
+            <div className="panel p-4 flex flex-col border-t-2 border-t-[var(--look)] rounded-t-none">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="text-sm font-semibold tracking-wider text-[var(--look-cyan)] uppercase flex items-center gap-1.5 m-0">
-                  <Navigation className="w-4 h-4 rotate-45" />
-                  LOOK Heuristic Baseline
+                <h3 className="text-sm font-medium text-[var(--look-text)] flex items-center gap-1.5 m-0">
+                  <Navigation className="w-3.5 h-3.5 rotate-45" />
+                  LOOK heuristic
                 </h3>
-                <span className="text-xs bg-slate-900 border border-[var(--border-color)] px-2 py-0.5 rounded-full text-slate-400 font-mono">Offline</span>
+                <span className="text-[11px] bg-[var(--well)] border border-[var(--line)] px-2 py-0.5 rounded-full text-[var(--ink-3)]">offline</span>
               </div>
-              
-              <ElevatorShaft 
-                state={hState} 
+
+              <ElevatorShaft
+                state={hState}
                 numFloors={floors}
                 numCars={numCars}
-                accentColor="var(--look-cyan)" 
+                accent="look"
                 onFloorClick={isInteractiveMode ? (fIdx) => setActiveSpawnFloor(fIdx) : null}
               />
-              <ConsoleTerminal logRef={hLogRef} logs={hState.logs} title="LOOK Event Logs" />
+              <ConsoleTerminal logRef={hLogRef} logs={hState.logs} title="LOOK event log" />
             </div>
 
             {/* Agentic Gemini Shaft */}
-            <div className={`glass-panel p-4 flex flex-col border-t-2 border-t-[var(--agent-violet)] relative transition-all duration-300 ${isAgentThinking ? 'border-violet-500/50 shadow-[0_0_15px_rgba(167,139,250,0.25)]' : ''}`}>
+            <div className={`panel p-4 flex flex-col border-t-2 border-t-[var(--agent)] rounded-t-none relative transition-all duration-300 ${isAgentThinking ? 'border-[var(--agent)]' : ''}`}>
               <div className="flex justify-between items-center mb-3">
-                <h3 className="text-sm font-semibold tracking-wider text-[var(--agent-violet)] uppercase flex items-center gap-1.5 m-0">
-                  <UserCheck className="w-4 h-4" />
-                  Strands + Gemini-3.5-Flash
+                <h3 className="text-sm font-medium text-[var(--agent-text)] flex items-center gap-1.5 m-0">
+                  <UserCheck className="w-3.5 h-3.5" />
+                  Gemini agent
                 </h3>
-                <span className="text-xs bg-violet-950/35 border border-violet-800/40 px-2 py-0.5 rounded-full text-violet-400 font-mono">Agentic</span>
+                <span className="text-[11px] bg-[var(--agent-fill)] border border-[var(--agent)] px-2 py-0.5 rounded-full text-[var(--agent-text)]">agentic</span>
               </div>
 
               {isAgentThinking && (
-                <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[2px] rounded-lg z-10 flex flex-col items-center justify-center text-center p-6">
-                  <div className="w-8 h-8 rounded-full border-2 border-t-[var(--agent-violet)] border-r-transparent animate-spin mb-3"></div>
-                  <h4 className="text-sm font-bold text-slate-200">Gemini is thinking...</h4>
-                  <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] leading-relaxed">
-                    Analyzing floor queues and car state to make the optimal dispatch decision.
+                <div className="absolute inset-0 bg-[rgba(250,249,245,0.88)] rounded-lg z-10 flex flex-col items-center justify-center text-center p-6">
+                  <div className="w-8 h-8 rounded-full border-2 border-t-[var(--agent)] border-r-transparent animate-spin mb-3"></div>
+                  <h4 className="text-sm font-medium text-[var(--ink)]">Gemini is thinking…</h4>
+                  <p className="text-[11px] text-[var(--ink-2)] mt-1 max-w-[200px] leading-relaxed">
+                    Analyzing floor queues and car state to pick the next dispatch.
                   </p>
                 </div>
               )}
 
               {agenticError ? (
-                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-slate-950/40 border border-dashed border-[var(--border-color)] rounded-lg min-h-[300px]">
-                  <AlertCircle className="w-8 h-8 text-amber-500 mb-2" />
-                  <h4 className="text-sm font-bold text-slate-200">Agentic Run Skipped / Failed</h4>
-                  <p className="text-xs text-slate-400 mt-1 max-w-[280px] leading-relaxed">
-                    {agenticError.includes('RESOURCE_EXHAUSTED') ? 
-                      "Gemini API rate limits (RESOURCE_EXHAUSTED 429) hit. Pre-recorded presets bypass this, or you can paste your own key in settings." : 
+                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-[var(--well)] border border-dashed border-[var(--line)] rounded-lg min-h-[300px]">
+                  <AlertCircle className="w-8 h-8 text-[var(--warn-text)] mb-2" />
+                  <h4 className="text-sm font-medium text-[var(--ink)]">Agentic run skipped</h4>
+                  <p className="text-xs text-[var(--ink-2)] mt-1 max-w-[280px] leading-relaxed">
+                    {agenticError.includes('RESOURCE_EXHAUSTED') ?
+                      "Gemini rate limits were hit. Pre-recorded presets bypass this, or set your own key in settings." :
                       agenticError}
                   </p>
-                  <button 
+                  <button
                     onClick={() => setShowSettingsModal(true)}
-                    className="mt-3 px-3 py-1.5 bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition"
+                    className="mt-3 px-3 py-1.5 bg-transparent border border-[var(--line)] hover:bg-[var(--surface)] rounded-lg text-xs font-medium text-[var(--ink-2)] hover:text-[var(--ink)] transition"
                   >
-                    Configure Key Settings
+                    Open settings
                   </button>
                 </div>
               ) : (
                 <>
-                  <ElevatorShaft 
-                    state={aState} 
+                  <ElevatorShaft
+                    state={aState}
                     numFloors={floors}
                     numCars={numCars}
-                    accentColor="var(--agent-violet)" 
+                    accent="agent"
                     onFloorClick={isInteractiveMode ? (fIdx) => setActiveSpawnFloor(fIdx) : null}
                   />
-                  <ConsoleTerminal logRef={aLogRef} logs={aState.logs} title="Agent Event Logs" />
+                  <ConsoleTerminal logRef={aLogRef} logs={aState.logs} title="Agent event log" />
                 </>
               )}
             </div>
@@ -717,64 +716,69 @@ export default function App() {
           </div>
 
           {/* Telemetry metrics & Line Chart */}
-          <div className="glass-panel p-4 flex flex-col gap-4">
-            <div className="flex justify-between items-center border-b border-[var(--border-color)] pb-2">
-              <h3 className="text-sm uppercase tracking-wider text-[var(--text-muted)] font-bold m-0 flex items-center gap-1">
-                <Award className="w-4 h-4 text-amber-500" />
-                Performance Comparison
+          <div className="panel p-4 flex flex-col gap-4">
+            <div className="flex justify-between items-center border-b border-[var(--line-soft)] pb-2.5">
+              <h3 className="text-sm font-medium text-[var(--ink)] m-0 flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-[var(--ink-3)]" />
+                Performance comparison
               </h3>
-              <span className="text-xs text-slate-400 font-mono">Tick {currentTick} Snapshot</span>
+              <span className="text-xs text-[var(--ink-3)] font-mono">tick {currentTick}</span>
             </div>
 
-            {/* Numerical metrics cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <MetricComparisonCard 
-                title="Average Wait Time" 
+            {/* Delta-first stat strip: hairline dividers via gap-px over the line color */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-[var(--line-soft)] border border-[var(--line)] rounded-xl overflow-hidden">
+              <MetricComparisonCard
+                title="Average wait"
                 hVal={heuristicData ? getAverageWaitTimeAtTick(heuristicData.events, currentTick) : 0}
                 aVal={agenticData && !agenticError ? getAverageWaitTimeAtTick(agenticData.events, currentTick) : null}
                 unit="ticks"
-                icon={<Clock className="w-4 h-4 text-amber-400" />}
+                betterWhen="lower"
+                icon={<Clock className="w-3.5 h-3.5" />}
               />
-              <MetricComparisonCard 
-                title="Total Car Moves" 
+              <MetricComparisonCard
+                title="Car moves"
                 hVal={hState.rawEvents.filter(e => e.event_type === "CarMoved").length}
                 aVal={agenticData && !agenticError ? aState.rawEvents.filter(e => e.event_type === "CarMoved").length : null}
                 unit="moves"
-                icon={<Navigation className="w-4 h-4 text-cyan-400" />}
+                betterWhen="lower"
+                icon={<Navigation className="w-3.5 h-3.5" />}
               />
-              <MetricComparisonCard 
-                title="Completed Passengers" 
+              <MetricComparisonCard
+                title="Delivered"
                 hVal={hState.rawEvents.filter(e => e.event_type === "PassengerDeboarded").length}
                 aVal={agenticData && !agenticError ? aState.rawEvents.filter(e => e.event_type === "PassengerDeboarded").length : null}
-                unit="deboarded"
-                icon={<UserCheck className="w-4 h-4 text-emerald-400" />}
+                unit="pax"
+                betterWhen="higher"
+                icon={<UserCheck className="w-3.5 h-3.5" />}
               />
-              <MetricComparisonCard 
-                title="Total Active Spawns" 
+              <MetricComparisonCard
+                title="Spawned"
                 hVal={hState.rawEvents.filter(e => e.event_type === "PassengerSpawned").length}
                 aVal={agenticData && !agenticError ? aState.rawEvents.filter(e => e.event_type === "PassengerSpawned").length : null}
-                unit="spawned"
-                icon={<Activity className="w-4 h-4 text-purple-400" />}
+                unit="pax"
+                betterWhen="neutral"
+                icon={<Activity className="w-3.5 h-3.5" />}
               />
-              <MetricComparisonCard 
-                title="Total Energy Consumed" 
+              <MetricComparisonCard
+                title="Energy"
                 hVal={heuristicData ? getEnergyAtTick(heuristicData, currentTick) : 0}
                 aVal={agenticData && !agenticError ? getEnergyAtTick(agenticData, currentTick) : null}
                 unit="kWh"
-                icon={<Zap className="w-4 h-4 text-cyan-400" />}
+                betterWhen="lower"
+                icon={<Zap className="w-3.5 h-3.5" />}
               />
             </div>
 
             {/* Line Chart */}
-            <div className="flex flex-col gap-2 mt-2 bg-slate-950/40 p-3 rounded-lg border border-[var(--border-color)]">
+            <div className="flex flex-col gap-2 mt-1">
               <div className="flex justify-between items-center text-xs">
-                <span className="font-semibold text-slate-300">Live Average Wait Time Profile (LOOK vs Agentic)</span>
+                <span className="text-[var(--ink-3)]">Average wait over time</span>
                 <div className="flex gap-4">
-                  <span className="flex items-center gap-1 text-[var(--look-cyan)]">
-                    <span className="w-2.5 h-0.5 bg-[var(--look-cyan)] inline-block"></span> LOOK Heuristic
+                  <span className="flex items-center gap-1.5 text-[var(--look-text)]">
+                    <span className="w-2.5 h-0.5 bg-[var(--look)] inline-block rounded"></span> LOOK
                   </span>
-                  <span className="flex items-center gap-1 text-[var(--agent-violet)]">
-                    <span className="w-2.5 h-0.5 border-t border-dashed border-[var(--agent-violet)] inline-block"></span> Gemini Agent
+                  <span className="flex items-center gap-1.5 text-[var(--agent-text)]">
+                    <span className="w-2.5 h-0.5 border-t border-dashed border-[var(--agent)] inline-block"></span> Gemini
                   </span>
                 </div>
               </div>
@@ -822,9 +826,9 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="mt-12 py-4 border-t border-[var(--border-color)] text-center text-xs text-[var(--text-muted)] flex justify-between items-center">
-        <span>Discrete-Event Elevator Simulator Platform</span>
-        <span>Built with Strands & Google Gemini</span>
+      <footer className="mt-12 py-4 border-t border-[var(--line)] text-xs text-[var(--ink-3)] flex justify-between items-center">
+        <span>Discrete-event elevator simulator</span>
+        <span>Built with Strands, Gemini and Gemma</span>
       </footer>
     </div>
   );
