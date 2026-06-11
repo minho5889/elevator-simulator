@@ -115,7 +115,7 @@ export const STRINGS = {
     'how.4.title': 'The scores',
     'how.4.body': 'Waiting time: how long people stood around (shorter = better). People delivered: how many reached their floor (more = better). Energy: how much electricity was used (less = better).',
     'how.5.title': 'What to expect',
-    'how.5.body': 'The AI usually wins on waiting time because it plans ahead — but sometimes it spends more energy to do it. Sometimes the simple rule ties or even wins. That’s the fun: run different days and find out!',
+    'how.5.body': 'Here’s the surprise: a really good simple rule is hard to beat! The AI thinks about every move, but Rule-Bot’s one rule is almost perfect for a small building. Watch who wins each day — and ask yourself why. That’s real AI science!',
     'how.6.title': 'Want to go deeper?',
     'how.6.body': 'Preset races replay real AI runs, so they work instantly. Turn on Advanced mode to build your own race, watch the raw event logs, and connect a live AI that thinks in real time.',
 
@@ -257,7 +257,7 @@ export const STRINGS = {
     'how.4.title': '점수 보는 법',
     'how.4.body': '기다린 시간: 사람들이 서서 기다린 시간 (짧을수록 좋아요). 데려다준 사람: 목적지에 도착한 사람 수 (많을수록 좋아요). 에너지: 쓴 전기 (적을수록 좋아요).',
     'how.5.title': '어떤 결과가 나올까?',
-    'how.5.body': 'AI는 미리 계획하기 때문에 보통 기다린 시간에서 이겨요. 대신 에너지를 더 쓰기도 해요. 가끔은 간단한 규칙이 비기거나 이기기도 해요! 여러 하루를 돌려보며 직접 확인해보세요.',
+    'how.5.body': '놀라운 사실: 좋은 규칙 하나는 이기기 정말 어려워요! AI는 매 수를 고민하지만, 작은 건물에서는 규칙 로봇의 단순한 규칙이 거의 완벽해요. 누가 이기는지 보면서 왜 그런지 생각해보세요. 그게 진짜 AI 과학이에요!',
     'how.6.title': '더 깊이 들어가고 싶나요?',
     'how.6.body': '기본 레이스는 진짜 AI가 했던 판을 다시 틀어줘서 바로 작동해요. 고급 모드를 켜면 나만의 레이스를 만들고, 이벤트 로그를 보고, 실시간으로 생각하는 라이브 AI도 연결할 수 있어요.',
 

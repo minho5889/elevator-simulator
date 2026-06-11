@@ -22,6 +22,13 @@
         "direction": 1
       },
       {
+        "event_type": "CarDispatched",
+        "message": "[002 T] CAR_DISPATCHED: Car C1 dispatched to floor 0",
+        "time": 2,
+        "car_id": "C1",
+        "target_floor": 0
+      },
+      {
         "event_type": "DoorOpened",
         "message": "[002 T] DOOR_OPENED: Car C1 opened doors at floor 0",
         "time": 2,
@@ -67,20 +74,27 @@
         "floor": 0
       },
       {
-        "event_type": "CarMoved",
-        "message": "[005 T] CAR_MOVED: Car C1 traveled 0 -> 1",
-        "time": 5,
+        "event_type": "CarDispatched",
+        "message": "[004 T] CAR_DISPATCHED: Car C1 dispatched to floor 2",
+        "time": 4,
         "car_id": "C1",
-        "from_floor": 0,
-        "to_floor": 1
+        "target_floor": 2
       },
       {
         "event_type": "CarMoved",
-        "message": "[006 T] CAR_MOVED: Car C1 traveled 1 -> 2",
+        "message": "[005 T] CAR_MOVED: Car C1 traveled 0.00 -> 1.00",
+        "time": 5,
+        "car_id": "C1",
+        "from_floor": 0.0,
+        "to_floor": 1.0
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[006 T] CAR_MOVED: Car C1 traveled 1.00 -> 2.00",
         "time": 6,
         "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 2
+        "from_floor": 1.0,
+        "to_floor": 2.0
       },
       {
         "event_type": "CarArrived",
@@ -142,6 +156,13 @@
         "floor": 2
       },
       {
+        "event_type": "CarDispatched",
+        "message": "[008 T] CAR_DISPATCHED: Car C1 dispatched to floor 3",
+        "time": 8,
+        "car_id": "C1",
+        "target_floor": 3
+      },
+      {
         "event_type": "PassengerSpawned",
         "message": "[009 T] PASSENGER_SPAWNED: P5 requests 0->1",
         "time": 9,
@@ -158,11 +179,11 @@
       },
       {
         "event_type": "CarMoved",
-        "message": "[009 T] CAR_MOVED: Car C1 traveled 2 -> 3",
+        "message": "[009 T] CAR_MOVED: Car C1 traveled 2.00 -> 3.00",
         "time": 9,
         "car_id": "C1",
-        "from_floor": 2,
-        "to_floor": 3
+        "from_floor": 2.0,
+        "to_floor": 3.0
       },
       {
         "event_type": "CarArrived",
@@ -194,28 +215,35 @@
         "floor": 3
       },
       {
+        "event_type": "CarDispatched",
+        "message": "[011 T] CAR_DISPATCHED: Car C1 dispatched to floor 0",
+        "time": 11,
+        "car_id": "C1",
+        "target_floor": 0
+      },
+      {
         "event_type": "CarMoved",
-        "message": "[012 T] CAR_MOVED: Car C1 traveled 3 -> 2",
+        "message": "[012 T] CAR_MOVED: Car C1 traveled 3.00 -> 2.00",
         "time": 12,
         "car_id": "C1",
-        "from_floor": 3,
-        "to_floor": 2
+        "from_floor": 3.0,
+        "to_floor": 2.0
       },
       {
         "event_type": "CarMoved",
-        "message": "[013 T] CAR_MOVED: Car C1 traveled 2 -> 1",
+        "message": "[013 T] CAR_MOVED: Car C1 traveled 2.00 -> 1.00",
         "time": 13,
         "car_id": "C1",
-        "from_floor": 2,
-        "to_floor": 1
+        "from_floor": 2.0,
+        "to_floor": 1.0
       },
       {
         "event_type": "CarMoved",
-        "message": "[014 T] CAR_MOVED: Car C1 traveled 1 -> 0",
+        "message": "[014 T] CAR_MOVED: Car C1 traveled 1.00 -> 0.00",
         "time": 14,
         "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 0
+        "from_floor": 1.0,
+        "to_floor": 0.0
       },
       {
         "event_type": "CarArrived",
@@ -263,12 +291,19 @@
         "floor": 0
       },
       {
+        "event_type": "CarDispatched",
+        "message": "[016 T] CAR_DISPATCHED: Car C1 dispatched to floor 1",
+        "time": 16,
+        "car_id": "C1",
+        "target_floor": 1
+      },
+      {
         "event_type": "CarMoved",
-        "message": "[017 T] CAR_MOVED: Car C1 traveled 0 -> 1",
+        "message": "[017 T] CAR_MOVED: Car C1 traveled 0.00 -> 1.00",
         "time": 17,
         "car_id": "C1",
-        "from_floor": 0,
-        "to_floor": 1
+        "from_floor": 0.0,
+        "to_floor": 1.0
       },
       {
         "event_type": "CarArrived",
@@ -323,6 +358,13 @@
         "floor": 1
       },
       {
+        "event_type": "CarDispatched",
+        "message": "[019 T] CAR_DISPATCHED: Car C1 dispatched to floor 0",
+        "time": 19,
+        "car_id": "C1",
+        "target_floor": 0
+      },
+      {
         "event_type": "PassengerSpawned",
         "message": "[020 T] PASSENGER_SPAWNED: P7 requests 0->3",
         "time": 20,
@@ -339,11 +381,11 @@
       },
       {
         "event_type": "CarMoved",
-        "message": "[020 T] CAR_MOVED: Car C1 traveled 1 -> 0",
+        "message": "[020 T] CAR_MOVED: Car C1 traveled 1.00 -> 0.00",
         "time": 20,
         "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 0
+        "from_floor": 1.0,
+        "to_floor": 0.0
       },
       {
         "event_type": "CarArrived",
@@ -421,6 +463,13 @@
         "floor": 0
       },
       {
+        "event_type": "CarDispatched",
+        "message": "[022 T] CAR_DISPATCHED: Car C1 dispatched to floor 0",
+        "time": 22,
+        "car_id": "C1",
+        "target_floor": 0
+      },
+      {
         "event_type": "DoorOpened",
         "message": "[022 T] DOOR_OPENED: Car C1 opened doors at floor 0",
         "time": 22,
@@ -443,28 +492,35 @@
         "floor": 0
       },
       {
+        "event_type": "CarDispatched",
+        "message": "[024 T] CAR_DISPATCHED: Car C1 dispatched to floor 3",
+        "time": 24,
+        "car_id": "C1",
+        "target_floor": 3
+      },
+      {
         "event_type": "CarMoved",
-        "message": "[025 T] CAR_MOVED: Car C1 traveled 0 -> 1",
+        "message": "[025 T] CAR_MOVED: Car C1 traveled 0.00 -> 1.00",
         "time": 25,
         "car_id": "C1",
-        "from_floor": 0,
-        "to_floor": 1
+        "from_floor": 0.0,
+        "to_floor": 1.0
       },
       {
         "event_type": "CarMoved",
-        "message": "[026 T] CAR_MOVED: Car C1 traveled 1 -> 2",
+        "message": "[026 T] CAR_MOVED: Car C1 traveled 1.00 -> 2.00",
         "time": 26,
         "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 2
+        "from_floor": 1.0,
+        "to_floor": 2.0
       },
       {
         "event_type": "CarMoved",
-        "message": "[027 T] CAR_MOVED: Car C1 traveled 2 -> 3",
+        "message": "[027 T] CAR_MOVED: Car C1 traveled 2.00 -> 3.00",
         "time": 27,
         "car_id": "C1",
-        "from_floor": 2,
-        "to_floor": 3
+        "from_floor": 2.0,
+        "to_floor": 3.0
       },
       {
         "event_type": "CarArrived",
@@ -504,12 +560,19 @@
         "floor": 3
       },
       {
+        "event_type": "CarDispatched",
+        "message": "[029 T] CAR_DISPATCHED: Car C1 dispatched to floor 4",
+        "time": 29,
+        "car_id": "C1",
+        "target_floor": 4
+      },
+      {
         "event_type": "CarMoved",
-        "message": "[030 T] CAR_MOVED: Car C1 traveled 3 -> 4",
+        "message": "[030 T] CAR_MOVED: Car C1 traveled 3.00 -> 4.00",
         "time": 30,
         "car_id": "C1",
-        "from_floor": 3,
-        "to_floor": 4
+        "from_floor": 3.0,
+        "to_floor": 4.0
       },
       {
         "event_type": "CarArrived",
@@ -572,36 +635,43 @@
         "direction": 1
       },
       {
+        "event_type": "CarDispatched",
+        "message": "[035 T] CAR_DISPATCHED: Car C1 dispatched to floor 0",
+        "time": 35,
+        "car_id": "C1",
+        "target_floor": 0
+      },
+      {
         "event_type": "CarMoved",
-        "message": "[036 T] CAR_MOVED: Car C1 traveled 4 -> 3",
+        "message": "[036 T] CAR_MOVED: Car C1 traveled 4.00 -> 3.00",
         "time": 36,
         "car_id": "C1",
-        "from_floor": 4,
-        "to_floor": 3
+        "from_floor": 4.0,
+        "to_floor": 3.0
       },
       {
         "event_type": "CarMoved",
-        "message": "[037 T] CAR_MOVED: Car C1 traveled 3 -> 2",
+        "message": "[037 T] CAR_MOVED: Car C1 traveled 3.00 -> 2.00",
         "time": 37,
         "car_id": "C1",
-        "from_floor": 3,
-        "to_floor": 2
+        "from_floor": 3.0,
+        "to_floor": 2.0
       },
       {
         "event_type": "CarMoved",
-        "message": "[038 T] CAR_MOVED: Car C1 traveled 2 -> 1",
+        "message": "[038 T] CAR_MOVED: Car C1 traveled 2.00 -> 1.00",
         "time": 38,
         "car_id": "C1",
-        "from_floor": 2,
-        "to_floor": 1
+        "from_floor": 2.0,
+        "to_floor": 1.0
       },
       {
         "event_type": "CarMoved",
-        "message": "[039 T] CAR_MOVED: Car C1 traveled 1 -> 0",
+        "message": "[039 T] CAR_MOVED: Car C1 traveled 1.00 -> 0.00",
         "time": 39,
         "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 0
+        "from_floor": 1.0,
+        "to_floor": 0.0
       },
       {
         "event_type": "CarArrived",
@@ -633,12 +703,19 @@
         "floor": 0
       },
       {
+        "event_type": "CarDispatched",
+        "message": "[041 T] CAR_DISPATCHED: Car C1 dispatched to floor 2",
+        "time": 41,
+        "car_id": "C1",
+        "target_floor": 2
+      },
+      {
         "event_type": "CarMoved",
-        "message": "[042 T] CAR_MOVED: Car C1 traveled 0 -> 1",
+        "message": "[042 T] CAR_MOVED: Car C1 traveled 0.00 -> 1.00",
         "time": 42,
         "car_id": "C1",
-        "from_floor": 0,
-        "to_floor": 1
+        "from_floor": 0.0,
+        "to_floor": 1.0
       },
       {
         "event_type": "PassengerSpawned",
@@ -657,11 +734,11 @@
       },
       {
         "event_type": "CarMoved",
-        "message": "[043 T] CAR_MOVED: Car C1 traveled 1 -> 2",
+        "message": "[043 T] CAR_MOVED: Car C1 traveled 1.00 -> 2.00",
         "time": 43,
         "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 2
+        "from_floor": 1.0,
+        "to_floor": 2.0
       },
       {
         "event_type": "CarArrived",
@@ -708,12 +785,19 @@
         "floor": 2
       },
       {
+        "event_type": "CarDispatched",
+        "message": "[045 T] CAR_DISPATCHED: Car C1 dispatched to floor 0",
+        "time": 45,
+        "car_id": "C1",
+        "target_floor": 0
+      },
+      {
         "event_type": "CarMoved",
-        "message": "[046 T] CAR_MOVED: Car C1 traveled 2 -> 1",
+        "message": "[046 T] CAR_MOVED: Car C1 traveled 2.00 -> 1.00",
         "time": 46,
         "car_id": "C1",
-        "from_floor": 2,
-        "to_floor": 1
+        "from_floor": 2.0,
+        "to_floor": 1.0
       },
       {
         "event_type": "PassengerSpawned",
@@ -732,11 +816,11 @@
       },
       {
         "event_type": "CarMoved",
-        "message": "[047 T] CAR_MOVED: Car C1 traveled 1 -> 0",
+        "message": "[047 T] CAR_MOVED: Car C1 traveled 1.00 -> 0.00",
         "time": 47,
         "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 0
+        "from_floor": 1.0,
+        "to_floor": 0.0
       },
       {
         "event_type": "CarArrived",
@@ -799,6 +883,13 @@
         "floor": 0
       },
       {
+        "event_type": "CarDispatched",
+        "message": "[049 T] CAR_DISPATCHED: Car C1 dispatched to floor 0",
+        "time": 49,
+        "car_id": "C1",
+        "target_floor": 0
+      },
+      {
         "event_type": "DoorOpened",
         "message": "[049 T] DOOR_OPENED: Car C1 opened doors at floor 0",
         "time": 49,
@@ -821,7 +912,8 @@
       "passengers_completed": 10,
       "avg_wait_time": 2.6,
       "avg_transit_time": 6.5,
-      "avg_total_time": 9.1
+      "avg_total_time": 9.1,
+      "total_energy": 76.5
     }
   },
   "agentic": {
@@ -842,11 +934,11 @@
         "direction": 1
       },
       {
-        "event_type": "DoorOpened",
-        "message": "[002 T] DOOR_OPENED: Car C1 opened doors at floor 0",
+        "event_type": "CarDispatched",
+        "message": "[002 T] CAR_DISPATCHED: Car C1 dispatched to floor 3",
         "time": 2,
         "car_id": "C1",
-        "floor": 0
+        "target_floor": 3
       },
       {
         "event_type": "PassengerSpawned",
@@ -864,65 +956,42 @@
         "direction": 1
       },
       {
-        "event_type": "PassengerBoarded",
-        "message": "[003 T] PASSENGER_BOARDED: P1 boarded car C1 at floor 0",
+        "event_type": "CarMoved",
+        "message": "[003 T] CAR_MOVED: Car C1 traveled 0.00 -> 1.00",
         "time": 3,
-        "passenger_id": "P1",
         "car_id": "C1",
-        "floor": 0
+        "from_floor": 0.0,
+        "to_floor": 1.0
       },
       {
-        "event_type": "PassengerBoarded",
-        "message": "[003 T] PASSENGER_BOARDED: P2 boarded car C1 at floor 0",
-        "time": 3,
-        "passenger_id": "P2",
-        "car_id": "C1",
-        "floor": 0
-      },
-      {
-        "event_type": "DoorClosed",
-        "message": "[004 T] DOOR_CLOSED: Car C1 closed doors at floor 0",
+        "event_type": "CarMoved",
+        "message": "[004 T] CAR_MOVED: Car C1 traveled 1.00 -> 2.00",
         "time": 4,
         "car_id": "C1",
-        "floor": 0
+        "from_floor": 1.0,
+        "to_floor": 2.0
       },
       {
         "event_type": "CarMoved",
-        "message": "[005 T] CAR_MOVED: Car C1 traveled 0 -> 1",
+        "message": "[005 T] CAR_MOVED: Car C1 traveled 2.00 -> 3.00",
         "time": 5,
         "car_id": "C1",
-        "from_floor": 0,
-        "to_floor": 1
-      },
-      {
-        "event_type": "CarMoved",
-        "message": "[006 T] CAR_MOVED: Car C1 traveled 1 -> 2",
-        "time": 6,
-        "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 2
+        "from_floor": 2.0,
+        "to_floor": 3.0
       },
       {
         "event_type": "CarArrived",
-        "message": "[006 T] CAR_ARRIVED: Car C1 arrived at floor 2 (Decided by Gemini Dispatcher Agent: Prioritizing nearest pending calls to minimize wait time.)",
-        "time": 6,
+        "message": "[005 T] CAR_ARRIVED: Car C1 arrived at floor 3",
+        "time": 5,
         "car_id": "C1",
-        "floor": 2
+        "floor": 3
       },
       {
         "event_type": "DoorOpened",
-        "message": "[006 T] DOOR_OPENED: Car C1 opened doors at floor 2",
-        "time": 6,
+        "message": "[005 T] DOOR_OPENED: Car C1 opened doors at floor 3",
+        "time": 5,
         "car_id": "C1",
-        "floor": 2
-      },
-      {
-        "event_type": "PassengerDeboarded",
-        "message": "[006 T] PASSENGER_DEBOARDED: P2 exited car C1 at floor 2",
-        "time": 6,
-        "passenger_id": "P2",
-        "car_id": "C1",
-        "floor": 2
+        "floor": 3
       },
       {
         "event_type": "PassengerSpawned",
@@ -940,6 +1009,20 @@
         "direction": 1
       },
       {
+        "event_type": "DoorClosed",
+        "message": "[007 T] DOOR_CLOSED: Car C1 closed doors at floor 3",
+        "time": 7,
+        "car_id": "C1",
+        "floor": 3
+      },
+      {
+        "event_type": "CarDispatched",
+        "message": "[007 T] CAR_DISPATCHED: Car C1 dispatched to floor 0",
+        "time": 7,
+        "car_id": "C1",
+        "target_floor": 0
+      },
+      {
         "event_type": "PassengerSpawned",
         "message": "[008 T] PASSENGER_SPAWNED: P4 requests 0->1",
         "time": 8,
@@ -955,11 +1038,12 @@
         "direction": 1
       },
       {
-        "event_type": "DoorClosed",
-        "message": "[008 T] DOOR_CLOSED: Car C1 closed doors at floor 2",
+        "event_type": "CarMoved",
+        "message": "[008 T] CAR_MOVED: Car C1 traveled 3.00 -> 2.00",
         "time": 8,
         "car_id": "C1",
-        "floor": 2
+        "from_floor": 3.0,
+        "to_floor": 2.0
       },
       {
         "event_type": "PassengerSpawned",
@@ -978,147 +1062,169 @@
       },
       {
         "event_type": "CarMoved",
-        "message": "[009 T] CAR_MOVED: Car C1 traveled 2 -> 3",
+        "message": "[009 T] CAR_MOVED: Car C1 traveled 2.00 -> 1.00",
         "time": 9,
         "car_id": "C1",
-        "from_floor": 2,
-        "to_floor": 3
+        "from_floor": 2.0,
+        "to_floor": 1.0
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[010 T] CAR_MOVED: Car C1 traveled 1.00 -> 0.00",
+        "time": 10,
+        "car_id": "C1",
+        "from_floor": 1.0,
+        "to_floor": 0.0
       },
       {
         "event_type": "CarArrived",
-        "message": "[009 T] CAR_ARRIVED: Car C1 arrived at floor 3 (Decided by Gemini Dispatcher Agent: Prioritizing nearest pending calls to minimize wait time.)",
-        "time": 9,
-        "car_id": "C1",
-        "floor": 3
-      },
-      {
-        "event_type": "DoorOpened",
-        "message": "[009 T] DOOR_OPENED: Car C1 opened doors at floor 3",
-        "time": 9,
-        "car_id": "C1",
-        "floor": 3
-      },
-      {
-        "event_type": "PassengerDeboarded",
-        "message": "[009 T] PASSENGER_DEBOARDED: P1 exited car C1 at floor 3",
-        "time": 9,
-        "passenger_id": "P1",
-        "car_id": "C1",
-        "floor": 3
-      },
-      {
-        "event_type": "DoorClosed",
-        "message": "[011 T] DOOR_CLOSED: Car C1 closed doors at floor 3",
-        "time": 11,
-        "car_id": "C1",
-        "floor": 3
-      },
-      {
-        "event_type": "CarMoved",
-        "message": "[012 T] CAR_MOVED: Car C1 traveled 3 -> 2",
-        "time": 12,
-        "car_id": "C1",
-        "from_floor": 3,
-        "to_floor": 2
-      },
-      {
-        "event_type": "CarMoved",
-        "message": "[013 T] CAR_MOVED: Car C1 traveled 2 -> 1",
-        "time": 13,
-        "car_id": "C1",
-        "from_floor": 2,
-        "to_floor": 1
-      },
-      {
-        "event_type": "CarMoved",
-        "message": "[014 T] CAR_MOVED: Car C1 traveled 1 -> 0",
-        "time": 14,
-        "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 0
-      },
-      {
-        "event_type": "CarArrived",
-        "message": "[014 T] CAR_ARRIVED: Car C1 arrived at floor 0 (Decided by Gemini Dispatcher Agent: Prioritizing nearest pending calls to minimize wait time.)",
-        "time": 14,
+        "message": "[010 T] CAR_ARRIVED: Car C1 arrived at floor 0",
+        "time": 10,
         "car_id": "C1",
         "floor": 0
       },
       {
         "event_type": "DoorOpened",
-        "message": "[014 T] DOOR_OPENED: Car C1 opened doors at floor 0",
-        "time": 14,
+        "message": "[010 T] DOOR_OPENED: Car C1 opened doors at floor 0",
+        "time": 10,
         "car_id": "C1",
         "floor": 0
       },
       {
         "event_type": "PassengerBoarded",
-        "message": "[014 T] PASSENGER_BOARDED: P3 boarded car C1 at floor 0",
-        "time": 14,
+        "message": "[010 T] PASSENGER_BOARDED: P1 boarded car C1 at floor 0",
+        "time": 10,
+        "passenger_id": "P1",
+        "car_id": "C1",
+        "floor": 0
+      },
+      {
+        "event_type": "PassengerBoarded",
+        "message": "[010 T] PASSENGER_BOARDED: P2 boarded car C1 at floor 0",
+        "time": 10,
+        "passenger_id": "P2",
+        "car_id": "C1",
+        "floor": 0
+      },
+      {
+        "event_type": "PassengerBoarded",
+        "message": "[010 T] PASSENGER_BOARDED: P3 boarded car C1 at floor 0",
+        "time": 10,
         "passenger_id": "P3",
         "car_id": "C1",
         "floor": 0
       },
       {
         "event_type": "PassengerBoarded",
-        "message": "[014 T] PASSENGER_BOARDED: P4 boarded car C1 at floor 0",
-        "time": 14,
+        "message": "[010 T] PASSENGER_BOARDED: P4 boarded car C1 at floor 0",
+        "time": 10,
         "passenger_id": "P4",
         "car_id": "C1",
         "floor": 0
       },
       {
         "event_type": "PassengerBoarded",
-        "message": "[014 T] PASSENGER_BOARDED: P5 boarded car C1 at floor 0",
-        "time": 14,
+        "message": "[010 T] PASSENGER_BOARDED: P5 boarded car C1 at floor 0",
+        "time": 10,
         "passenger_id": "P5",
         "car_id": "C1",
         "floor": 0
       },
       {
         "event_type": "DoorClosed",
-        "message": "[016 T] DOOR_CLOSED: Car C1 closed doors at floor 0",
-        "time": 16,
+        "message": "[012 T] DOOR_CLOSED: Car C1 closed doors at floor 0",
+        "time": 12,
         "car_id": "C1",
         "floor": 0
       },
       {
-        "event_type": "CarMoved",
-        "message": "[017 T] CAR_MOVED: Car C1 traveled 0 -> 1",
-        "time": 17,
+        "event_type": "CarDispatched",
+        "message": "[012 T] CAR_DISPATCHED: Car C1 dispatched to floor 1",
+        "time": 12,
         "car_id": "C1",
-        "from_floor": 0,
-        "to_floor": 1
+        "target_floor": 1
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[013 T] CAR_MOVED: Car C1 traveled 0.00 -> 1.00",
+        "time": 13,
+        "car_id": "C1",
+        "from_floor": 0.0,
+        "to_floor": 1.0
       },
       {
         "event_type": "CarArrived",
-        "message": "[017 T] CAR_ARRIVED: Car C1 arrived at floor 1 (Decided by Gemini Dispatcher Agent: Prioritizing nearest pending calls to minimize wait time.)",
-        "time": 17,
+        "message": "[013 T] CAR_ARRIVED: Car C1 arrived at floor 1",
+        "time": 13,
         "car_id": "C1",
         "floor": 1
       },
       {
         "event_type": "DoorOpened",
-        "message": "[017 T] DOOR_OPENED: Car C1 opened doors at floor 1",
-        "time": 17,
+        "message": "[013 T] DOOR_OPENED: Car C1 opened doors at floor 1",
+        "time": 13,
         "car_id": "C1",
         "floor": 1
       },
       {
         "event_type": "PassengerDeboarded",
-        "message": "[017 T] PASSENGER_DEBOARDED: P4 exited car C1 at floor 1",
-        "time": 17,
+        "message": "[013 T] PASSENGER_DEBOARDED: P4 exited car C1 at floor 1",
+        "time": 13,
         "passenger_id": "P4",
         "car_id": "C1",
         "floor": 1
       },
       {
         "event_type": "PassengerDeboarded",
-        "message": "[017 T] PASSENGER_DEBOARDED: P5 exited car C1 at floor 1",
-        "time": 17,
+        "message": "[013 T] PASSENGER_DEBOARDED: P5 exited car C1 at floor 1",
+        "time": 13,
         "passenger_id": "P5",
         "car_id": "C1",
         "floor": 1
+      },
+      {
+        "event_type": "DoorClosed",
+        "message": "[015 T] DOOR_CLOSED: Car C1 closed doors at floor 1",
+        "time": 15,
+        "car_id": "C1",
+        "floor": 1
+      },
+      {
+        "event_type": "CarDispatched",
+        "message": "[015 T] CAR_DISPATCHED: Car C1 dispatched to floor 2",
+        "time": 15,
+        "car_id": "C1",
+        "target_floor": 2
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[016 T] CAR_MOVED: Car C1 traveled 1.00 -> 2.00",
+        "time": 16,
+        "car_id": "C1",
+        "from_floor": 1.0,
+        "to_floor": 2.0
+      },
+      {
+        "event_type": "CarArrived",
+        "message": "[016 T] CAR_ARRIVED: Car C1 arrived at floor 2",
+        "time": 16,
+        "car_id": "C1",
+        "floor": 2
+      },
+      {
+        "event_type": "DoorOpened",
+        "message": "[016 T] DOOR_OPENED: Car C1 opened doors at floor 2",
+        "time": 16,
+        "car_id": "C1",
+        "floor": 2
+      },
+      {
+        "event_type": "PassengerDeboarded",
+        "message": "[016 T] PASSENGER_DEBOARDED: P2 exited car C1 at floor 2",
+        "time": 16,
+        "passenger_id": "P2",
+        "car_id": "C1",
+        "floor": 2
       },
       {
         "event_type": "PassengerSpawned",
@@ -1137,10 +1243,47 @@
       },
       {
         "event_type": "DoorClosed",
-        "message": "[019 T] DOOR_CLOSED: Car C1 closed doors at floor 1",
+        "message": "[018 T] DOOR_CLOSED: Car C1 closed doors at floor 2",
+        "time": 18,
+        "car_id": "C1",
+        "floor": 2
+      },
+      {
+        "event_type": "CarDispatched",
+        "message": "[018 T] CAR_DISPATCHED: Car C1 dispatched to floor 3",
+        "time": 18,
+        "car_id": "C1",
+        "target_floor": 3
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[019 T] CAR_MOVED: Car C1 traveled 2.00 -> 3.00",
         "time": 19,
         "car_id": "C1",
-        "floor": 1
+        "from_floor": 2.0,
+        "to_floor": 3.0
+      },
+      {
+        "event_type": "CarArrived",
+        "message": "[019 T] CAR_ARRIVED: Car C1 arrived at floor 3",
+        "time": 19,
+        "car_id": "C1",
+        "floor": 3
+      },
+      {
+        "event_type": "DoorOpened",
+        "message": "[019 T] DOOR_OPENED: Car C1 opened doors at floor 3",
+        "time": 19,
+        "car_id": "C1",
+        "floor": 3
+      },
+      {
+        "event_type": "PassengerDeboarded",
+        "message": "[019 T] PASSENGER_DEBOARDED: P1 exited car C1 at floor 3",
+        "time": 19,
+        "passenger_id": "P1",
+        "car_id": "C1",
+        "floor": 3
       },
       {
         "event_type": "PassengerSpawned",
@@ -1158,44 +1301,6 @@
         "direction": 1
       },
       {
-        "event_type": "CarMoved",
-        "message": "[020 T] CAR_MOVED: Car C1 traveled 1 -> 0",
-        "time": 20,
-        "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 0
-      },
-      {
-        "event_type": "CarArrived",
-        "message": "[020 T] CAR_ARRIVED: Car C1 arrived at floor 0 (Decided by Gemini Dispatcher Agent: Prioritizing nearest pending calls to minimize wait time.)",
-        "time": 20,
-        "car_id": "C1",
-        "floor": 0
-      },
-      {
-        "event_type": "DoorOpened",
-        "message": "[020 T] DOOR_OPENED: Car C1 opened doors at floor 0",
-        "time": 20,
-        "car_id": "C1",
-        "floor": 0
-      },
-      {
-        "event_type": "PassengerBoarded",
-        "message": "[020 T] PASSENGER_BOARDED: P6 boarded car C1 at floor 0",
-        "time": 20,
-        "passenger_id": "P6",
-        "car_id": "C1",
-        "floor": 0
-      },
-      {
-        "event_type": "PassengerBoarded",
-        "message": "[020 T] PASSENGER_BOARDED: P7 boarded car C1 at floor 0",
-        "time": 20,
-        "passenger_id": "P7",
-        "car_id": "C1",
-        "floor": 0
-      },
-      {
         "event_type": "PassengerSpawned",
         "message": "[021 T] PASSENGER_SPAWNED: P8 requests 0->4",
         "time": 21,
@@ -1211,12 +1316,18 @@
         "direction": 1
       },
       {
-        "event_type": "PassengerBoarded",
-        "message": "[021 T] PASSENGER_BOARDED: P8 boarded car C1 at floor 0",
+        "event_type": "DoorClosed",
+        "message": "[021 T] DOOR_CLOSED: Car C1 closed doors at floor 3",
         "time": 21,
-        "passenger_id": "P8",
         "car_id": "C1",
-        "floor": 0
+        "floor": 3
+      },
+      {
+        "event_type": "CarDispatched",
+        "message": "[021 T] CAR_DISPATCHED: Car C1 dispatched to floor 4",
+        "time": 21,
+        "car_id": "C1",
+        "target_floor": 4
       },
       {
         "event_type": "PassengerSpawned",
@@ -1234,147 +1345,194 @@
         "direction": 1
       },
       {
-        "event_type": "DoorClosed",
-        "message": "[022 T] DOOR_CLOSED: Car C1 closed doors at floor 0",
+        "event_type": "CarMoved",
+        "message": "[022 T] CAR_MOVED: Car C1 traveled 3.00 -> 4.00",
         "time": 22,
+        "car_id": "C1",
+        "from_floor": 3.0,
+        "to_floor": 4.0
+      },
+      {
+        "event_type": "CarArrived",
+        "message": "[022 T] CAR_ARRIVED: Car C1 arrived at floor 4",
+        "time": 22,
+        "car_id": "C1",
+        "floor": 4
+      },
+      {
+        "event_type": "DoorOpened",
+        "message": "[022 T] DOOR_OPENED: Car C1 opened doors at floor 4",
+        "time": 22,
+        "car_id": "C1",
+        "floor": 4
+      },
+      {
+        "event_type": "PassengerDeboarded",
+        "message": "[022 T] PASSENGER_DEBOARDED: P3 exited car C1 at floor 4",
+        "time": 22,
+        "passenger_id": "P3",
+        "car_id": "C1",
+        "floor": 4
+      },
+      {
+        "event_type": "DoorClosed",
+        "message": "[024 T] DOOR_CLOSED: Car C1 closed doors at floor 4",
+        "time": 24,
+        "car_id": "C1",
+        "floor": 4
+      },
+      {
+        "event_type": "CarDispatched",
+        "message": "[024 T] CAR_DISPATCHED: Car C1 dispatched to floor 0",
+        "time": 24,
+        "car_id": "C1",
+        "target_floor": 0
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[025 T] CAR_MOVED: Car C1 traveled 4.00 -> 3.00",
+        "time": 25,
+        "car_id": "C1",
+        "from_floor": 4.0,
+        "to_floor": 3.0
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[026 T] CAR_MOVED: Car C1 traveled 3.00 -> 2.00",
+        "time": 26,
+        "car_id": "C1",
+        "from_floor": 3.0,
+        "to_floor": 2.0
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[027 T] CAR_MOVED: Car C1 traveled 2.00 -> 1.00",
+        "time": 27,
+        "car_id": "C1",
+        "from_floor": 2.0,
+        "to_floor": 1.0
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[028 T] CAR_MOVED: Car C1 traveled 1.00 -> 0.00",
+        "time": 28,
+        "car_id": "C1",
+        "from_floor": 1.0,
+        "to_floor": 0.0
+      },
+      {
+        "event_type": "CarArrived",
+        "message": "[028 T] CAR_ARRIVED: Car C1 arrived at floor 0",
+        "time": 28,
         "car_id": "C1",
         "floor": 0
       },
       {
         "event_type": "DoorOpened",
-        "message": "[022 T] DOOR_OPENED: Car C1 opened doors at floor 0",
-        "time": 22,
+        "message": "[028 T] DOOR_OPENED: Car C1 opened doors at floor 0",
+        "time": 28,
         "car_id": "C1",
         "floor": 0
       },
       {
         "event_type": "PassengerBoarded",
-        "message": "[023 T] PASSENGER_BOARDED: P9 boarded car C1 at floor 0",
-        "time": 23,
+        "message": "[028 T] PASSENGER_BOARDED: P6 boarded car C1 at floor 0",
+        "time": 28,
+        "passenger_id": "P6",
+        "car_id": "C1",
+        "floor": 0
+      },
+      {
+        "event_type": "PassengerBoarded",
+        "message": "[028 T] PASSENGER_BOARDED: P7 boarded car C1 at floor 0",
+        "time": 28,
+        "passenger_id": "P7",
+        "car_id": "C1",
+        "floor": 0
+      },
+      {
+        "event_type": "PassengerBoarded",
+        "message": "[028 T] PASSENGER_BOARDED: P8 boarded car C1 at floor 0",
+        "time": 28,
+        "passenger_id": "P8",
+        "car_id": "C1",
+        "floor": 0
+      },
+      {
+        "event_type": "PassengerBoarded",
+        "message": "[028 T] PASSENGER_BOARDED: P9 boarded car C1 at floor 0",
+        "time": 28,
         "passenger_id": "P9",
         "car_id": "C1",
         "floor": 0
       },
       {
         "event_type": "DoorClosed",
-        "message": "[024 T] DOOR_CLOSED: Car C1 closed doors at floor 0",
-        "time": 24,
+        "message": "[030 T] DOOR_CLOSED: Car C1 closed doors at floor 0",
+        "time": 30,
         "car_id": "C1",
         "floor": 0
       },
       {
-        "event_type": "CarMoved",
-        "message": "[025 T] CAR_MOVED: Car C1 traveled 0 -> 1",
-        "time": 25,
+        "event_type": "CarDispatched",
+        "message": "[030 T] CAR_DISPATCHED: Car C1 dispatched to floor 3",
+        "time": 30,
         "car_id": "C1",
-        "from_floor": 0,
-        "to_floor": 1
+        "target_floor": 3
       },
       {
         "event_type": "CarMoved",
-        "message": "[026 T] CAR_MOVED: Car C1 traveled 1 -> 2",
-        "time": 26,
+        "message": "[031 T] CAR_MOVED: Car C1 traveled 0.00 -> 1.00",
+        "time": 31,
         "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 2
+        "from_floor": 0.0,
+        "to_floor": 1.0
       },
       {
         "event_type": "CarMoved",
-        "message": "[027 T] CAR_MOVED: Car C1 traveled 2 -> 3",
-        "time": 27,
+        "message": "[032 T] CAR_MOVED: Car C1 traveled 1.00 -> 2.00",
+        "time": 32,
         "car_id": "C1",
-        "from_floor": 2,
-        "to_floor": 3
+        "from_floor": 1.0,
+        "to_floor": 2.0
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[033 T] CAR_MOVED: Car C1 traveled 2.00 -> 3.00",
+        "time": 33,
+        "car_id": "C1",
+        "from_floor": 2.0,
+        "to_floor": 3.0
       },
       {
         "event_type": "CarArrived",
-        "message": "[027 T] CAR_ARRIVED: Car C1 arrived at floor 3 (Decided by Gemini Dispatcher Agent: Prioritizing nearest pending calls to minimize wait time.)",
-        "time": 27,
+        "message": "[033 T] CAR_ARRIVED: Car C1 arrived at floor 3",
+        "time": 33,
         "car_id": "C1",
         "floor": 3
       },
       {
         "event_type": "DoorOpened",
-        "message": "[027 T] DOOR_OPENED: Car C1 opened doors at floor 3",
-        "time": 27,
+        "message": "[033 T] DOOR_OPENED: Car C1 opened doors at floor 3",
+        "time": 33,
         "car_id": "C1",
         "floor": 3
       },
       {
         "event_type": "PassengerDeboarded",
-        "message": "[027 T] PASSENGER_DEBOARDED: P7 exited car C1 at floor 3",
-        "time": 27,
+        "message": "[033 T] PASSENGER_DEBOARDED: P7 exited car C1 at floor 3",
+        "time": 33,
         "passenger_id": "P7",
         "car_id": "C1",
         "floor": 3
       },
       {
         "event_type": "PassengerDeboarded",
-        "message": "[027 T] PASSENGER_DEBOARDED: P9 exited car C1 at floor 3",
-        "time": 27,
+        "message": "[033 T] PASSENGER_DEBOARDED: P9 exited car C1 at floor 3",
+        "time": 33,
         "passenger_id": "P9",
         "car_id": "C1",
         "floor": 3
-      },
-      {
-        "event_type": "DoorClosed",
-        "message": "[029 T] DOOR_CLOSED: Car C1 closed doors at floor 3",
-        "time": 29,
-        "car_id": "C1",
-        "floor": 3
-      },
-      {
-        "event_type": "CarMoved",
-        "message": "[030 T] CAR_MOVED: Car C1 traveled 3 -> 4",
-        "time": 30,
-        "car_id": "C1",
-        "from_floor": 3,
-        "to_floor": 4
-      },
-      {
-        "event_type": "CarArrived",
-        "message": "[030 T] CAR_ARRIVED: Car C1 arrived at floor 4 (Decided by Gemini Dispatcher Agent: Prioritizing nearest pending calls to minimize wait time.)",
-        "time": 30,
-        "car_id": "C1",
-        "floor": 4
-      },
-      {
-        "event_type": "DoorOpened",
-        "message": "[030 T] DOOR_OPENED: Car C1 opened doors at floor 4",
-        "time": 30,
-        "car_id": "C1",
-        "floor": 4
-      },
-      {
-        "event_type": "PassengerDeboarded",
-        "message": "[030 T] PASSENGER_DEBOARDED: P3 exited car C1 at floor 4",
-        "time": 30,
-        "passenger_id": "P3",
-        "car_id": "C1",
-        "floor": 4
-      },
-      {
-        "event_type": "PassengerDeboarded",
-        "message": "[030 T] PASSENGER_DEBOARDED: P6 exited car C1 at floor 4",
-        "time": 30,
-        "passenger_id": "P6",
-        "car_id": "C1",
-        "floor": 4
-      },
-      {
-        "event_type": "PassengerDeboarded",
-        "message": "[030 T] PASSENGER_DEBOARDED: P8 exited car C1 at floor 4",
-        "time": 30,
-        "passenger_id": "P8",
-        "car_id": "C1",
-        "floor": 4
-      },
-      {
-        "event_type": "DoorClosed",
-        "message": "[032 T] DOOR_CLOSED: Car C1 closed doors at floor 4",
-        "time": 32,
-        "car_id": "C1",
-        "floor": 4
       },
       {
         "event_type": "PassengerSpawned",
@@ -1392,73 +1550,124 @@
         "direction": 1
       },
       {
+        "event_type": "DoorClosed",
+        "message": "[035 T] DOOR_CLOSED: Car C1 closed doors at floor 3",
+        "time": 35,
+        "car_id": "C1",
+        "floor": 3
+      },
+      {
+        "event_type": "CarDispatched",
+        "message": "[035 T] CAR_DISPATCHED: Car C1 dispatched to floor 4",
+        "time": 35,
+        "car_id": "C1",
+        "target_floor": 4
+      },
+      {
         "event_type": "CarMoved",
-        "message": "[036 T] CAR_MOVED: Car C1 traveled 4 -> 3",
+        "message": "[036 T] CAR_MOVED: Car C1 traveled 3.00 -> 4.00",
         "time": 36,
         "car_id": "C1",
-        "from_floor": 4,
-        "to_floor": 3
-      },
-      {
-        "event_type": "CarMoved",
-        "message": "[037 T] CAR_MOVED: Car C1 traveled 3 -> 2",
-        "time": 37,
-        "car_id": "C1",
-        "from_floor": 3,
-        "to_floor": 2
-      },
-      {
-        "event_type": "CarMoved",
-        "message": "[038 T] CAR_MOVED: Car C1 traveled 2 -> 1",
-        "time": 38,
-        "car_id": "C1",
-        "from_floor": 2,
-        "to_floor": 1
-      },
-      {
-        "event_type": "CarMoved",
-        "message": "[039 T] CAR_MOVED: Car C1 traveled 1 -> 0",
-        "time": 39,
-        "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 0
+        "from_floor": 3.0,
+        "to_floor": 4.0
       },
       {
         "event_type": "CarArrived",
-        "message": "[039 T] CAR_ARRIVED: Car C1 arrived at floor 0 (Decided by Gemini Dispatcher Agent: Prioritizing nearest pending calls to minimize wait time.)",
+        "message": "[036 T] CAR_ARRIVED: Car C1 arrived at floor 4",
+        "time": 36,
+        "car_id": "C1",
+        "floor": 4
+      },
+      {
+        "event_type": "DoorOpened",
+        "message": "[036 T] DOOR_OPENED: Car C1 opened doors at floor 4",
+        "time": 36,
+        "car_id": "C1",
+        "floor": 4
+      },
+      {
+        "event_type": "PassengerDeboarded",
+        "message": "[036 T] PASSENGER_DEBOARDED: P6 exited car C1 at floor 4",
+        "time": 36,
+        "passenger_id": "P6",
+        "car_id": "C1",
+        "floor": 4
+      },
+      {
+        "event_type": "PassengerDeboarded",
+        "message": "[036 T] PASSENGER_DEBOARDED: P8 exited car C1 at floor 4",
+        "time": 36,
+        "passenger_id": "P8",
+        "car_id": "C1",
+        "floor": 4
+      },
+      {
+        "event_type": "DoorClosed",
+        "message": "[038 T] DOOR_CLOSED: Car C1 closed doors at floor 4",
+        "time": 38,
+        "car_id": "C1",
+        "floor": 4
+      },
+      {
+        "event_type": "CarDispatched",
+        "message": "[038 T] CAR_DISPATCHED: Car C1 dispatched to floor 0",
+        "time": 38,
+        "car_id": "C1",
+        "target_floor": 0
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[039 T] CAR_MOVED: Car C1 traveled 4.00 -> 3.00",
         "time": 39,
+        "car_id": "C1",
+        "from_floor": 4.0,
+        "to_floor": 3.0
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[040 T] CAR_MOVED: Car C1 traveled 3.00 -> 2.00",
+        "time": 40,
+        "car_id": "C1",
+        "from_floor": 3.0,
+        "to_floor": 2.0
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[041 T] CAR_MOVED: Car C1 traveled 2.00 -> 1.00",
+        "time": 41,
+        "car_id": "C1",
+        "from_floor": 2.0,
+        "to_floor": 1.0
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[042 T] CAR_MOVED: Car C1 traveled 1.00 -> 0.00",
+        "time": 42,
+        "car_id": "C1",
+        "from_floor": 1.0,
+        "to_floor": 0.0
+      },
+      {
+        "event_type": "CarArrived",
+        "message": "[042 T] CAR_ARRIVED: Car C1 arrived at floor 0",
+        "time": 42,
         "car_id": "C1",
         "floor": 0
       },
       {
         "event_type": "DoorOpened",
-        "message": "[039 T] DOOR_OPENED: Car C1 opened doors at floor 0",
-        "time": 39,
+        "message": "[042 T] DOOR_OPENED: Car C1 opened doors at floor 0",
+        "time": 42,
         "car_id": "C1",
         "floor": 0
       },
       {
         "event_type": "PassengerBoarded",
-        "message": "[039 T] PASSENGER_BOARDED: P10 boarded car C1 at floor 0",
-        "time": 39,
+        "message": "[042 T] PASSENGER_BOARDED: P10 boarded car C1 at floor 0",
+        "time": 42,
         "passenger_id": "P10",
         "car_id": "C1",
         "floor": 0
-      },
-      {
-        "event_type": "DoorClosed",
-        "message": "[041 T] DOOR_CLOSED: Car C1 closed doors at floor 0",
-        "time": 41,
-        "car_id": "C1",
-        "floor": 0
-      },
-      {
-        "event_type": "CarMoved",
-        "message": "[042 T] CAR_MOVED: Car C1 traveled 0 -> 1",
-        "time": 42,
-        "car_id": "C1",
-        "from_floor": 0,
-        "to_floor": 1
       },
       {
         "event_type": "PassengerSpawned",
@@ -1476,34 +1685,12 @@
         "direction": 1
       },
       {
-        "event_type": "CarMoved",
-        "message": "[043 T] CAR_MOVED: Car C1 traveled 1 -> 2",
+        "event_type": "PassengerBoarded",
+        "message": "[043 T] PASSENGER_BOARDED: P11 boarded car C1 at floor 0",
         "time": 43,
+        "passenger_id": "P11",
         "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 2
-      },
-      {
-        "event_type": "CarArrived",
-        "message": "[043 T] CAR_ARRIVED: Car C1 arrived at floor 2 (Decided by Gemini Dispatcher Agent: Prioritizing nearest pending calls to minimize wait time.)",
-        "time": 43,
-        "car_id": "C1",
-        "floor": 2
-      },
-      {
-        "event_type": "DoorOpened",
-        "message": "[043 T] DOOR_OPENED: Car C1 opened doors at floor 2",
-        "time": 43,
-        "car_id": "C1",
-        "floor": 2
-      },
-      {
-        "event_type": "PassengerDeboarded",
-        "message": "[043 T] PASSENGER_DEBOARDED: P10 exited car C1 at floor 2",
-        "time": 43,
-        "passenger_id": "P10",
-        "car_id": "C1",
-        "floor": 2
+        "floor": 0
       },
       {
         "event_type": "PassengerSpawned",
@@ -1522,18 +1709,55 @@
       },
       {
         "event_type": "DoorClosed",
-        "message": "[045 T] DOOR_CLOSED: Car C1 closed doors at floor 2",
+        "message": "[044 T] DOOR_CLOSED: Car C1 closed doors at floor 0",
+        "time": 44,
+        "car_id": "C1",
+        "floor": 0
+      },
+      {
+        "event_type": "CarDispatched",
+        "message": "[044 T] CAR_DISPATCHED: Car C1 dispatched to floor 2",
+        "time": 44,
+        "car_id": "C1",
+        "target_floor": 2
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[045 T] CAR_MOVED: Car C1 traveled 0.00 -> 1.00",
         "time": 45,
+        "car_id": "C1",
+        "from_floor": 0.0,
+        "to_floor": 1.0
+      },
+      {
+        "event_type": "CarMoved",
+        "message": "[046 T] CAR_MOVED: Car C1 traveled 1.00 -> 2.00",
+        "time": 46,
+        "car_id": "C1",
+        "from_floor": 1.0,
+        "to_floor": 2.0
+      },
+      {
+        "event_type": "CarArrived",
+        "message": "[046 T] CAR_ARRIVED: Car C1 arrived at floor 2",
+        "time": 46,
         "car_id": "C1",
         "floor": 2
       },
       {
-        "event_type": "CarMoved",
-        "message": "[046 T] CAR_MOVED: Car C1 traveled 2 -> 1",
+        "event_type": "DoorOpened",
+        "message": "[046 T] DOOR_OPENED: Car C1 opened doors at floor 2",
         "time": 46,
         "car_id": "C1",
-        "from_floor": 2,
-        "to_floor": 1
+        "floor": 2
+      },
+      {
+        "event_type": "PassengerDeboarded",
+        "message": "[046 T] PASSENGER_DEBOARDED: P10 exited car C1 at floor 2",
+        "time": 46,
+        "passenger_id": "P10",
+        "car_id": "C1",
+        "floor": 2
       },
       {
         "event_type": "PassengerSpawned",
@@ -1551,50 +1775,18 @@
         "direction": 1
       },
       {
-        "event_type": "CarMoved",
-        "message": "[047 T] CAR_MOVED: Car C1 traveled 1 -> 0",
-        "time": 47,
+        "event_type": "DoorClosed",
+        "message": "[048 T] DOOR_CLOSED: Car C1 closed doors at floor 2",
+        "time": 48,
         "car_id": "C1",
-        "from_floor": 1,
-        "to_floor": 0
+        "floor": 2
       },
       {
-        "event_type": "CarArrived",
-        "message": "[047 T] CAR_ARRIVED: Car C1 arrived at floor 0 (Decided by Gemini Dispatcher Agent: Prioritizing nearest pending calls to minimize wait time.)",
-        "time": 47,
+        "event_type": "CarDispatched",
+        "message": "[048 T] CAR_DISPATCHED: Car C1 dispatched to floor 3",
+        "time": 48,
         "car_id": "C1",
-        "floor": 0
-      },
-      {
-        "event_type": "DoorOpened",
-        "message": "[047 T] DOOR_OPENED: Car C1 opened doors at floor 0",
-        "time": 47,
-        "car_id": "C1",
-        "floor": 0
-      },
-      {
-        "event_type": "PassengerBoarded",
-        "message": "[047 T] PASSENGER_BOARDED: P11 boarded car C1 at floor 0",
-        "time": 47,
-        "passenger_id": "P11",
-        "car_id": "C1",
-        "floor": 0
-      },
-      {
-        "event_type": "PassengerBoarded",
-        "message": "[047 T] PASSENGER_BOARDED: P12 boarded car C1 at floor 0",
-        "time": 47,
-        "passenger_id": "P12",
-        "car_id": "C1",
-        "floor": 0
-      },
-      {
-        "event_type": "PassengerBoarded",
-        "message": "[047 T] PASSENGER_BOARDED: P13 boarded car C1 at floor 0",
-        "time": 47,
-        "passenger_id": "P13",
-        "car_id": "C1",
-        "floor": 0
+        "target_floor": 3
       },
       {
         "event_type": "PassengerSpawned",
@@ -1612,36 +1804,45 @@
         "direction": 1
       },
       {
-        "event_type": "DoorClosed",
-        "message": "[049 T] DOOR_CLOSED: Car C1 closed doors at floor 0",
+        "event_type": "CarMoved",
+        "message": "[049 T] CAR_MOVED: Car C1 traveled 2.00 -> 3.00",
         "time": 49,
         "car_id": "C1",
-        "floor": 0
+        "from_floor": 2.0,
+        "to_floor": 3.0
+      },
+      {
+        "event_type": "CarArrived",
+        "message": "[049 T] CAR_ARRIVED: Car C1 arrived at floor 3",
+        "time": 49,
+        "car_id": "C1",
+        "floor": 3
       },
       {
         "event_type": "DoorOpened",
-        "message": "[049 T] DOOR_OPENED: Car C1 opened doors at floor 0",
+        "message": "[049 T] DOOR_OPENED: Car C1 opened doors at floor 3",
         "time": 49,
         "car_id": "C1",
-        "floor": 0
+        "floor": 3
       },
       {
-        "event_type": "PassengerBoarded",
-        "message": "[050 T] PASSENGER_BOARDED: P14 boarded car C1 at floor 0",
-        "time": 50,
-        "passenger_id": "P14",
+        "event_type": "PassengerDeboarded",
+        "message": "[049 T] PASSENGER_DEBOARDED: P11 exited car C1 at floor 3",
+        "time": 49,
+        "passenger_id": "P11",
         "car_id": "C1",
-        "floor": 0
+        "floor": 3
       }
     ],
     "metrics": {
-      "total_ticks": 50,
-      "total_car_moves": 20,
+      "total_ticks": 49,
+      "total_car_moves": 25,
       "passengers_spawned": 14,
-      "passengers_completed": 10,
-      "avg_wait_time": 2.6,
-      "avg_transit_time": 6.5,
-      "avg_total_time": 9.1
+      "passengers_completed": 11,
+      "avg_wait_time": 5.36,
+      "avg_transit_time": 6.27,
+      "avg_total_time": 11.64,
+      "total_energy": 91.0
     }
   }
 }
