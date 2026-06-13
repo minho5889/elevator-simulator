@@ -1,6 +1,7 @@
 // src/ArenaApp.jsx
-// The skyscraper Arena: build a matchup of dispatcher contestants, race them up
-// a tower under a chosen traffic regime, and watch the snapshot stream live.
+// Two experiences sharing one engine:
+//  • Kid mode (default): pick a day, watch two friendly racers, simple score.
+//  • Grown-up mode: the full arena — any contestants, every slider, all metrics.
 import { useArena } from './state/arenaStore.jsx';
 import { useArenaSocket } from './hooks/useArenaSocket.js';
 import { useLang } from './i18n.jsx';
@@ -9,11 +10,13 @@ import ArenaSetup from './components/ArenaSetup.jsx';
 import ArenaGrid from './components/ArenaGrid.jsx';
 import Leaderboard from './components/Leaderboard.jsx';
 import PlaybackBar from './components/PlaybackBar.jsx';
+import KidView from './components/KidView.jsx';
 
 export default function ArenaApp() {
   const { state, dispatch } = useArena();
   const socket = useArenaSocket();
   const { t, lang, setLang } = useLang();
+  const grownUp = state.ui.grownUp;
 
   const onRace = (specs) => {
     dispatch({ type: 'RESET' });
@@ -32,6 +35,12 @@ export default function ArenaApp() {
     }
   };
 
+  const toggleMode = () => {
+    socket.disconnect();
+    dispatch({ type: 'RESET' });
+    dispatch({ type: 'SET_UI', ui: { grownUp: !grownUp } });
+  };
+
   const hasRace = state.contestants.length > 0;
 
   return (
@@ -45,21 +54,32 @@ export default function ArenaApp() {
             <p className="text-sm text-[var(--ink-3)] mt-1">{t('arena.tagline')}</p>
           </div>
           <div className="flex items-center gap-2">
+            <button className="btn-chunky text-sm font-extrabold px-4 py-2 rounded-xl" onClick={toggleMode}>
+              {grownUp ? `🧒 ${t('kid.kidMode')}` : `⚙️ ${t('kid.grownUp')}`}
+            </button>
             <button className="btn-chunky text-xs font-extrabold px-2.5 py-1.5 rounded-xl"
               onClick={() => setLang(lang === 'en' ? 'ko' : 'en')} title="Language">
               {lang === 'en' ? '한국어' : 'EN'}
             </button>
-            <span className="text-xs mono font-bold px-2.5 py-1 rounded-full border-2 border-[var(--border-ink)]"
-              style={{ background: socket.connected ? 'var(--robot-fill)' : 'var(--well)', color: 'var(--ink-2)' }}>
-              {socket.connected ? `● ${t('arena.live')}` : `○ ${t('arena.idle')}`}
-            </span>
+            {grownUp && (
+              <span className="text-xs mono font-bold px-2.5 py-1 rounded-full border-2 border-[var(--border-ink)]"
+                style={{ background: socket.connected ? 'var(--robot-fill)' : 'var(--well)', color: 'var(--ink-2)' }}>
+                {socket.connected ? `● ${t('arena.live')}` : `○ ${t('arena.idle')}`}
+              </span>
+            )}
           </div>
         </header>
 
-        <ArenaSetup onRace={onRace} onPreset={onPreset} racing={false} />
-        {hasRace && <PlaybackBar socket={socket} />}
-        {hasRace && <Leaderboard />}
-        <ArenaGrid />
+        {grownUp ? (
+          <>
+            <ArenaSetup onRace={onRace} onPreset={onPreset} racing={false} />
+            {hasRace && <PlaybackBar socket={socket} />}
+            {hasRace && <Leaderboard />}
+            <ArenaGrid />
+          </>
+        ) : (
+          <KidView onDay={onPreset} />
+        )}
       </div>
     </div>
   );

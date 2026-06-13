@@ -14,6 +14,12 @@ from typing import Any, Dict, List, Optional
 from elevatorsim.core.events import Event
 from elevatorsim.arena.run import percentile
 
+# Cap the per-floor waiting list carried in a snapshot. Under saturation a lobby
+# queue can be hundreds deep; the UI only needs a few avatars + the true count,
+# and uncapped lists bloat both the live stream and baked presets. The real count
+# rides in ``floor_counts`` so display stays accurate.
+_QUEUE_CAP = 40
+
 
 def serialize_event(event: Event) -> Dict[str, Any]:
     """Serialize a simulation event object into a JSON-compatible dictionary."""
@@ -133,14 +139,18 @@ def serialize_sim_state(
     transfers: int = 0,
 ) -> Dict[str, Any]:
     """Full per-tick snapshot for one contestant (everything the Arena renders)."""
+    floor_queues: Dict[str, Any] = {}
+    floor_counts: Dict[str, int] = {}
+    for f in sim.building.get_active_calls():
+        q = sim.building.get_waiting_at(f)
+        floor_queues[str(f)] = [_passenger_brief(p) for p in q[:_QUEUE_CAP]]
+        floor_counts[str(f)] = len(q)
     snap: Dict[str, Any] = {
         "contestant_id": contestant_id,
         "tick": sim.current_time,
         "cars": [_car_state(c) for c in sim.cars],
-        "floor_queues": {
-            str(f): [_passenger_brief(p) for p in sim.building.get_waiting_at(f)]
-            for f in sim.building.get_active_calls()
-        },
+        "floor_queues": floor_queues,
+        "floor_counts": floor_counts,
         "metrics": snapshot_metrics(sim, refusals=refusals, transfers=transfers),
     }
     zones = _zone_map(sim)

@@ -1,40 +1,37 @@
 [
   {
-    "key": "morning_up_peak",
-    "title": "Morning Up-Peak",
-    "emoji": "\u2b06\ufe0f",
+    "key": "morning_rush",
+    "title": "Morning Rush",
+    "emoji": "\ud83c\udf05",
     "regime": "up_peak",
-    "num_floors": 32,
-    "num_cars": 6,
-    "contestants": [
-      "look_park",
-      "dd_delayed",
-      "zoned"
-    ]
-  },
-  {
-    "key": "lunch_rush",
-    "title": "Lunch Rush",
-    "emoji": "\ud83c\udf71",
-    "regime": "lunch",
-    "num_floors": 24,
-    "num_cars": 6,
+    "num_floors": 30,
+    "num_cars": 8,
     "contestants": [
       "look",
-      "zoned",
       "dd_delayed"
     ]
   },
   {
-    "key": "quiet_uniform",
-    "title": "Quiet Uniform Day",
-    "emoji": "\u2696\ufe0f",
+    "key": "lunchtime",
+    "title": "Lunchtime",
+    "emoji": "\ud83c\udf71",
+    "regime": "lunch",
+    "num_floors": 22,
+    "num_cars": 6,
+    "contestants": [
+      "look",
+      "zoned"
+    ]
+  },
+  {
+    "key": "quiet_day",
+    "title": "Quiet Day",
+    "emoji": "\u2601\ufe0f",
     "regime": "uniform",
     "num_floors": 16,
     "num_cars": 4,
     "contestants": [
       "look",
-      "eta",
       "dd_delayed"
     ]
   }
