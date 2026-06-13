@@ -24,7 +24,11 @@ import ollama
 
 from elevatorsim.config import DEFAULT_SEED, OLLAMA_HOST, OLLAMA_MODEL_ID
 from elevatorsim.policy.schemas import StructuralPlan
-from elevatorsim.policy.structural import STRUCTURAL_SYSTEM_PROMPT, StructuralDispatcher
+from elevatorsim.policy.structural import (
+    STRUCTURAL_SYSTEM_PROMPT,
+    StructuralDispatcher,
+    build_structural_messages,
+)
 from elevatorsim.tools.sim_tools import (
     clear_active_simulation,
     get_traffic_summary,
@@ -79,13 +83,15 @@ class LLMStructuralProvider:
         self.stats = {"calls": 0, "invalid": 0}
 
     def _query_model(self, summary: str) -> StructuralPlan:
-        """Single constrained-decode call. Overridable so tests can run offline."""
+        """Single constrained-decode call. Overridable so tests can run offline.
+
+        The prompt is built through ``build_structural_messages`` — the SAME
+        anchor Stage-3 assembly uses — so a fine-tuned model is served the exact
+        prompt it was trained on (train == prod).
+        """
         response = self._client.chat(
             model=self.model_id,
-            messages=[
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": f"Traffic summary: {summary}\nPlan:"},
-            ],
+            messages=build_structural_messages(summary, self.system_prompt),
             format=self._schema,
             options={"temperature": 0, "seed": self.seed},
             think=False,

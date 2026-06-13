@@ -14,7 +14,13 @@ from pathlib import Path
 import pytest
 
 from elevatorsim.policy.schemas import StructuralPlan
-from elevatorsim.policy.structural import STRUCTURAL_SYSTEM_PROMPT, StructuralDispatcher
+from elevatorsim.policy.structural import (
+    STRUCTURAL_SYSTEM_PROMPT,
+    STRUCTURAL_USER_TEMPLATE,
+    StructuralDispatcher,
+    build_structural_messages,
+    structural_target_json,
+)
 from elevatorsim.policy.structural_agent import (
     LLMStructuralProvider,
     make_structural_dispatcher,
@@ -111,6 +117,33 @@ def test_frozen_system_prompt_carries_the_contract():
     import inspect
     default = inspect.signature(LLMStructuralProvider.__init__).parameters["system_prompt"].default
     assert default is STRUCTURAL_SYSTEM_PROMPT
+
+
+def test_anchor_build_structural_messages():
+    """The shared prompt builder produces the exact (system, user) pair."""
+    iv = '{"frac_origin_lobby":1.0}'
+    msgs = build_structural_messages(iv)
+    assert [m["role"] for m in msgs] == ["system", "user"]
+    assert msgs[0]["content"] == STRUCTURAL_SYSTEM_PROMPT
+    assert msgs[1]["content"] == STRUCTURAL_USER_TEMPLATE.format(input_view=iv)
+    assert msgs[1]["content"] == f"Traffic summary: {iv}\nPlan:"
+
+
+def test_anchor_target_json_is_canonical_and_parses():
+    """The assistant target is minimal (mode+hold only), compact, and re-parses."""
+    s = structural_target_json(StructuralPlan(mode="zoned", hold="fill_batch"))
+    assert s == '{"mode":"zoned","hold":"fill_batch"}'  # exact canonical form
+    back = StructuralPlan.model_validate_json(s)
+    assert (back.mode, back.hold) == ("zoned", "fill_batch")
+
+
+def test_inference_builds_prompt_through_the_anchor():
+    """train == prod: the provider must route its prompt through the anchor, not
+    an inline f-string that could silently drift from assembly (WO-003)."""
+    import inspect
+    src = inspect.getsource(LLMStructuralProvider._query_model)
+    assert "build_structural_messages" in src
+    assert "Traffic summary:" not in src  # no inline duplicate of the template
 
 
 def _ollama_ready() -> bool:

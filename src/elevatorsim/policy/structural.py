@@ -16,6 +16,7 @@ system can reproduce. ``reset_assignment_state`` clears the turnstile on every
 mode change so the incoming mode starts from a clean slate.
 """
 
+import json
 from typing import Any, Callable, Dict, List
 
 from elevatorsim.policy.base import GroupDispatcher
@@ -42,6 +43,38 @@ STRUCTURAL_SYSTEM_PROMPT = (
     "depart_now when saturated.\n"
     "Respond with the plan only."
 )
+
+# THE train==prod format anchor. Both the inference path (LLMStructuralProvider)
+# and the Stage-3 assembly (WO-003) MUST build the model's prompt through
+# ``build_structural_messages`` and target through ``structural_target_json`` —
+# never inline their own f-string — so a fine-tuned model sees byte-identical
+# prompts at train and inference time. A drift of one space or word here is the
+# #1 silent SFT killer (the model trained on prompt A, served prompt B).
+STRUCTURAL_USER_TEMPLATE = "Traffic summary: {input_view}\nPlan:"
+
+
+def build_structural_messages(
+    input_view: str, system_prompt: str = STRUCTURAL_SYSTEM_PROMPT
+) -> List[Dict[str, str]]:
+    """The exact (system, user) message pair the model sees, train and prod.
+
+    ``input_view`` is the serialized ``get_traffic_summary`` (the only model
+    input — see the G5 amendment). Returns the two prompt turns; assembly appends
+    the assistant target (``structural_target_json``), inference reads the
+    model's reply.
+    """
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": STRUCTURAL_USER_TEMPLATE.format(input_view=input_view)},
+    ]
+
+
+def structural_target_json(plan: StructuralPlan) -> str:
+    """The canonical assistant-target string for a plan — what the model is
+    trained to emit and what it must produce at inference. Field order matches
+    the schema (mode, hold); compact separators; no trailing whitespace."""
+    return json.dumps({"mode": plan.mode, "hold": plan.hold}, separators=(",", ":"))
+
 
 # Departure-control presets: hold name -> (batch_threshold, patience_ticks).
 # These are the exact knobs on DestinationGroupDispatcher / ZonedStaticDispatcher;
