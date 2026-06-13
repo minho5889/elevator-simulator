@@ -54,8 +54,8 @@ export default function ArenaApp() {
             <p className="text-sm text-[var(--ink-3)] mt-1">{t('arena.tagline')}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="btn-chunky text-xs font-extrabold px-3 py-1.5 rounded-xl" onClick={toggleMode}>
-              {grownUp ? `🧒 ${t('kid.kidMode')}` : `🧑 ${t('kid.grownUp')}`}
+            <button className="btn-chunky text-sm font-extrabold px-4 py-2 rounded-xl" onClick={toggleMode}>
+              {grownUp ? `🧒 ${t('kid.kidMode')}` : `⚙️ ${t('kid.grownUp')}`}
             </button>
             <button className="btn-chunky text-xs font-extrabold px-2.5 py-1.5 rounded-xl"
               onClick={() => setLang(lang === 'en' ? 'ko' : 'en')} title="Language">

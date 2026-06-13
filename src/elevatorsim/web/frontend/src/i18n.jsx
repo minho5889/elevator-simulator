@@ -218,8 +218,8 @@ export const STRINGS = {
     'dispatcher.agentic.blurb': 'Per-decision LLM dispatch (slow / quota-bound).',
 
     // --- Kid mode ---
-    'kid.grownUp': 'Grown-up mode',
-    'kid.kidMode': 'Kid mode',
+    'kid.grownUp': 'Advanced mode',
+    'kid.kidMode': 'Simple mode',
     'kid.pickDay': 'Pick a day!',
     'kid.pickDay.hint': 'Tap a day to watch the elevators race.',
     'kid.loading': 'Loading the day…',
@@ -459,8 +459,8 @@ export const STRINGS = {
     'dispatcher.agentic.blurb': '매 결정마다 LLM 배차 (느리고 할당량 제한).',
 
     // --- Kid mode ---
-    'kid.grownUp': '어른 모드',
-    'kid.kidMode': '키즈 모드',
+    'kid.grownUp': '고급 모드',
+    'kid.kidMode': '간단 모드',
     'kid.pickDay': '오늘을 골라봐요!',
     'kid.pickDay.hint': '날을 누르면 엘리베이터 경주를 볼 수 있어요.',
     'kid.loading': '불러오는 중…',
