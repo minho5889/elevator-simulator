@@ -24,7 +24,7 @@ const initialState = {
   contestants: [],              // [{id,dispatcher,label,emoji,toneSlot,available,reason,snapshots,latestTick,error,metrics}]
   playback: { currentTick: 0, maxTick: 0, isPlaying: false, speed: 1, mode: 'idle' },
   status: { connected: false, regime: DEFAULT_CONFIG.regime, limits: { max_floors: 60, max_cars: 12, max_capacity: 64 } },
-  ui: { settingsOpen: false, focusRegion: null, activeSpawnFloor: null },
+  ui: { grownUp: false, settingsOpen: false, focusRegion: null, activeSpawnFloor: null },
 };
 
 function mergeContestant(entry) {

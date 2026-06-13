@@ -106,31 +106,37 @@ def bake_one(contestants: List[Dict[str, Any]], *, seed: int, num_floors: int,
     }
 
 
-# The baked preset catalog — conventional contestants only (offline, no model).
+# The baked "day" catalog for the kid view: two friendly racers per day —
+# Robot (a simple LOOK rule) vs Brainy (a plan-ahead policy). Conventional
+# dispatchers only, so a day replays instantly with no model needed. The ids
+# robot/brainy are what the kid UI shows as character names.
 PRESETS = {
-    "morning_up_peak": {
-        "title": "Morning Up-Peak", "emoji": "⬆️",
-        "regime": "up_peak", "num_floors": 32, "num_cars": 6, "capacity": 24,
-        "arrival_rate": 1.0, "max_ticks": 180, "seed": 1000,
-        "contestants": [{"id": "look_park", "dispatcher": "look_park"},
-                        {"id": "dd_delayed", "dispatcher": "dd_delayed"},
-                        {"id": "zoned", "dispatcher": "zoned"}],
+    # Busy morning everyone-rides-up: heavy up-peak is exactly where planning
+    # ahead (destination dispatch) beats a simple sweep — Brainy wins clearly.
+    "morning_rush": {
+        "title": "Morning Rush", "emoji": "🌅",
+        "regime": "up_peak", "num_floors": 30, "num_cars": 8, "capacity": 18,
+        "arrival_rate": 1.3, "max_ticks": 200, "seed": 1000,
+        "contestants": [{"id": "robot", "dispatcher": "look"},
+                        {"id": "brainy", "dispatcher": "dd_delayed"}],
     },
-    "lunch_rush": {
-        "title": "Lunch Rush", "emoji": "🍱",
-        "regime": "lunch", "num_floors": 24, "num_cars": 6, "capacity": 24,
-        "arrival_rate": 1.2, "max_ticks": 180, "seed": 2000,
-        "contestants": [{"id": "look", "dispatcher": "look"},
-                        {"id": "zoned", "dispatcher": "zoned"},
-                        {"id": "dd_delayed", "dispatcher": "dd_delayed"}],
+    # Calmer lunch, crowds both ways: the zippy simple sweep keeps up — Robot
+    # wins. (Different days suit different styles!)
+    "lunchtime": {
+        "title": "Lunchtime", "emoji": "🍱",
+        "regime": "lunch", "num_floors": 22, "num_cars": 6, "capacity": 20,
+        "arrival_rate": 1.0, "max_ticks": 200, "seed": 2000,
+        "contestants": [{"id": "robot", "dispatcher": "look"},
+                        {"id": "brainy", "dispatcher": "zoned"}],
     },
-    "quiet_uniform": {
-        "title": "Quiet Uniform Day", "emoji": "⚖️",
+    # Calm, scattered traffic: the simple speedy sweep keeps up just fine —
+    # Robot wins. (Different days need different ideas!)
+    "quiet_day": {
+        "title": "Quiet Day", "emoji": "☁️",
         "regime": "uniform", "num_floors": 16, "num_cars": 4, "capacity": 24,
-        "arrival_rate": 0.5, "max_ticks": 150, "seed": 3000,
-        "contestants": [{"id": "look", "dispatcher": "look"},
-                        {"id": "eta", "dispatcher": "eta"},
-                        {"id": "dd_delayed", "dispatcher": "dd_delayed"}],
+        "arrival_rate": 0.5, "max_ticks": 160, "seed": 3000,
+        "contestants": [{"id": "robot", "dispatcher": "look"},
+                        {"id": "brainy", "dispatcher": "dd_delayed"}],
     },
 }
 

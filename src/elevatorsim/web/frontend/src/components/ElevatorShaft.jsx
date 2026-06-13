@@ -48,16 +48,17 @@ function Window() {
 }
 
 // A compact passenger cluster for dense floors: up to a couple avatars then a count.
-function QueueChip({ queue, tone }) {
-  if (!queue.length) return null;
+function QueueChip({ queue, count, tone }) {
+  const total = count ?? queue.length;
+  if (!total) return null;
   const head = queue.slice(0, 2);
   return (
-    <span className="flex items-center gap-0.5 select-none" title={`${queue.length} waiting`}>
+    <span className="flex items-center gap-0.5 select-none" title={`${total} waiting`}>
       {head.map((p) => <span key={p.id} className="text-[12px] leading-none">{personEmoji(p.id)}</span>)}
-      {queue.length > 2 && (
+      {total > head.length && (
         <span className="text-[9px] font-extrabold mono px-1 rounded-full"
           style={{ background: tone.fill, color: tone.text, border: `1px solid ${tone.deep}` }}>
-          +{queue.length - 2}
+          +{total - head.length}
         </span>
       )}
     </span>
@@ -72,12 +73,14 @@ export default function ElevatorShaft({
   const tier = densityTier(numFloors);
 
   // Normalize the snapshot into the renderer's shape (tolerant of an empty tick).
-  const { cars, queueAt, zones } = useMemo(() => {
+  const { cars, queueAt, countAt, zones } = useMemo(() => {
     const carList = snapshot?.cars || [];
     const q = snapshot?.floor_queues || {};
+    const counts = snapshot?.floor_counts || {};
     return {
       cars: carList,
       queueAt: (f) => q[String(f)] || [],
+      countAt: (f) => counts[String(f)] ?? (q[String(f)] || []).length,
       zones: snapshot?.zones || null,
     };
   }, [snapshot]);
@@ -162,7 +165,7 @@ export default function ElevatorShaft({
                   <div className="flex-1 flex gap-1 flex-wrap overflow-hidden justify-end items-center max-h-full">
                     {detailed
                       ? waitingQueue.map((p) => <WaitingPassenger key={p.id} p={p} />)
-                      : <QueueChip queue={waitingQueue} tone={tone} />}
+                      : <QueueChip queue={waitingQueue} count={countAt(fIdx)} tone={tone} />}
                   </div>
                 </div>
               );
