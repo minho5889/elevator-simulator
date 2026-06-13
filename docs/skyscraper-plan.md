@@ -55,6 +55,10 @@ Each phase is independently shippable, arena-verified, and ordered so the one be
 
 Phases P1–P3 are pure engine/instrument work (no LLM). P4–P6 build the structural environment. P7 is the fine-tune. P8 is optional richness.
 
+### Execution lanes
+
+Per the amended `training-plan.md` §4: **Lane A** (Claude, this repo) writes every phase in this plan — P1–P6 are instrument and engine work, judgment-bound and gate-verified, where modeling errors pass tests silently (the zero-stop-time keystone is the proof case). **Lane B** (Gemini 3.5 Flash in Antigravity, audited against Lane-A-authored gate tests) opens only after P4–P5 freeze the structural action space; it then owns the volume code — harvest scripts, labeling notebooks, the training script. **Lane C** (Gemini 3.5 as teacher/judge) is unchanged from the training plan. The structural action space itself (destination-call assignment, zone maps) is defined as Strands tools + pydantic schemas in `policy/`, keeping the production harness and the training contract one artifact.
+
 ---
 
 ## 4. Revised scope and acceptance gates
@@ -65,7 +69,7 @@ The mid-rise gates (training-plan.md G1–G5) still apply within each local grou
 |---|---|
 | S1 | Tier-3 RTT matches the analytic formula `RTT ≈ 2H·t_v + (S+1)·t_s + 2P·t_p` within ~5% on scripted up-peak trips (validates P1/P2) |
 | S2 | Conventional-control HC5 reproduces the §6 anchor (~12% pop for the 19-floor/8-car/24-cap building) — the instrument is calibrated before any policy claim |
-| S3 | Destination dispatch shows a real up-peak HC5 gain over conventional **and** no down-peak benefit (matches the verified asymmetry [Report §3.3]; a down-peak "gain" means the model is wrong) |
+| S3 | Destination dispatch shows a real up-peak HC5 gain over conventional, **and the destination-information channel is inert down-peak** — measured against the `shuttle` ablation (identical holding/turnstile/routing, FIFO batches, no destination info), dd must equal shuttle run-for-run down-peak while beating it ≥1.6× up-peak. *Amended from "no down-peak benefit vs conventional": the naive comparison conflates collection-routing quality with information value — measured, dd's down-peak edge over naive LOOK was 100% routing (shuttle ≡ dd, both 1.78× look_park) and 0% information. The ablation isolates the §3.3 claim exactly.* |
 | S4 | Learned structural policy ≥ best engineered baseline (ETA group / destination batching) on HC5 up-peak **and** P95 wait in every regime — no starvation regression at scale |
 | S5 | Immediate-vs-delayed assignment is logged and held explicit in every destination-dispatch comparison, so interface constraints are never conflated with algorithm quality [Report §8] |
 
@@ -81,6 +85,47 @@ The mid-rise gates (training-plan.md G1–G5) still apply within each local grou
 
 ---
 
-## 6. Immediate next action
+## 6. Status and immediate next action
 
-**Phase 1, step 1: the Tier-3 time-cost model**, config-gated, validated against the §6 RTT formula (gate S1). Everything else is blocked on it. The one decision that governs how P1 is built — evolve the core timing vs. add a parallel Tier-3 path — is settled in favor of the **config-gated parallel path** above, to protect the preset/visualization contract.
+- **P1 ✅** — Tier-3 time-cost model (`stop_ticks`/`transfer_ticks` on `Simulation`, config-gated, legacy byte-identical). Gate S1 closed-form tests in `tests/test_timing.py`.
+- **P2 ✅** — express/rated speed verified: multi-floor-per-tick travel clamps exactly (`ceil(d/v)` ticks per leg), doors never open mid-flight, energy is speed-invariant, and the full RTT decomposition (travel + 7·t_s stops + 12·t_p transfers) holds at v=3 on the 19-floor reference cell. Accel/decel folded into `stop_ticks` by design (documented on `Car.speed`).
+- **P3 ✅ (gate S2 passed)** — true HC5 (per 300 ticks, 1 tick ≈ 1 s), measured per-car RTT and UPPINT, %POP via `--population`, the §6 analytic formula chain (`expected_stops`/`highest_reversal`/`analytic_rtt`/`hc5_from_interval` in `scripts/arena.py`), and survivorship discipline (zero-delivery wait metrics report None; best-in-column stars require completion ≥ 90% of the regime's best — `star_eligible`). **S2 calibration:** the formula code reproduces the published chain exactly (202.3 s → 12.0% pop), and the simulated reference cell (19 floors above terminal, 8 cars, cap 24, `look_park`, t_v=1/t_s=9/t_p=1) measures **11.9% vs the published 12.0%**. Finding en route: naive LOOK strands ~half the bank upstairs in up-peak (~8% pop); conventional staging required a new ladder rung — `MainTerminalParkingLook` (`look_park`) — added in `policy/baselines.py` without touching the frozen production LOOK.
+- **P4 ✅ (gates S3 + S5 passed)** — destination dispatch: `Passenger.assigned_car_id` + kiosk-turnstile boarding in the engine (legacy walk-in behaviour byte-identical), super-saturation traffic (`arrival_rate > 1`, legacy RNG path untouched), and `policy/destination.py` (`dd_delayed` / `dd_immediate` / `shuttle` ablation) with departure control (batch threshold + patience). **Measured on the §6 cell at 600/5min demand:** conventional 11.8% pop → dd_delayed **26.0%** (2.20×, vs published 2.03×); causal decomposition via shuttle: information channel **2.02×** up-peak, **exactly 1.000×** down-peak (dd ≡ shuttle run-for-run). S5: delayed beats immediate in mixed traffic (completion 0.61 vs 0.47), assignment mode logged on every run. Two defects found and fixed en route: premature near-empty departures (fixed by departure control) and a bank-wide lobby deadlock from walk-ins stealing batch seats (fixed by the turnstile + full-cars-never-target-pickups guard).
+- **P5 ✅ (gate passed)** — static zoning (`policy/zoning.py`, arena rung `zoned`): one contiguous zone per car, zone signage via the assigned-boarding machinery, destination-zone rule for lobby boardings / source-zone for sector collection; departure control, turnstile, routing and parking inherited from the DD family. **Measured at 32 floors:** zoned 13.3% pop vs look_park 6.1% (2.18×) and plain look 4.2% (3.20×), P95 tail halved. Dynamic re-zoning deliberately omitted — the zone map is the learned policy's action surface (P7). Two strategic findings: at 30+ floors **dd ≈ zoned** (1.02× — both travel-envelope-limited; dynamic windows degenerate to sectors when the queue is deep), and in mixed lunch traffic **zoned beats dd** (11.2% vs 9.3% — lobby-anchored batching mishandles bidirectional flow). The structural policy choice is therefore regime- and height-dependent — exactly the decision surface P7 trains Gemma on.
+- **★ action-space freeze ✅ (2026-06-12)** — the frozen structural I/O contract is set, the offline oracle is built and gated, and Lane B is open. Authored via a 4-design adversarial panel (17 agents) synthesized against a freshly-measured winner grid; details below.
+- **Next: P6 (sky lobbies) ∥ Lane B execution (WO-001 harvest).**
+
+---
+
+## 7. The frozen structural action space (P7 contract)
+
+**Output schema** — `StructuralPlan` in `policy/schemas.py`, two grammar-constrainable `Literal` enums, ~10 output tokens, no nesting, no reasoning field (teacher-only):
+
+```
+mode ∈ {conventional, dd_delayed, zoned}      # the structural strategy this epoch
+hold ∈ {depart_now, balanced, fill_batch}     # departure-control preset
+```
+
+**Input** — three frozen Strands tools: `get_all_cars_state`, `get_floor_calls`, and the new `get_traffic_summary` (regime/load sufficient statistics — `frac_origin_lobby` etc. — that cleanly separate the four regimes). **Cadence** — per-epoch (≥ 1 measured RTT), never per-tick; within-epoch routing is the deterministic collective/batching/sectoring machinery, zero model calls. **Execution** — `policy/structural.py`: `plan_to_dispatcher`, `reset_assignment_state` (clean mode handover — clears the turnstile so a switch never strands committed passengers), and `StructuralDispatcher` (the production surface). **Offline oracle** — `scripts/oracle.py`: enumerate all 9 plans, roll each H ticks, argmin a survivorship-proof cost, explicit tie-break.
+
+### Why these exact fields (the empirical winner grid, HC5, 5 seeds, heights 20/32/48)
+
+| regime | winner (all heights) |
+|---|---|
+| up-peak | `dd_delayed` (≈2× conventional) |
+| down-peak | `dd_delayed` |
+| lunch | `zoned` |
+| uniform interfloor | `conventional` (the Yavaş trap — the trivial policy wins) |
+
+Each of the three modes wins a regime cleanly, so none is dead weight. `hold` is near-inert under saturation but a real lever at moderate load (`fill_batch` roughly halves the P95 wait tail at no throughput cost) — the oracle tie-breaks it to `balanced` when inert.
+
+**Cut after measuring the live engine** (do not re-add without new evidence): `dd_immediate` (dominated by `dd_delayed` at every cell — kept only as an arena ablation rung for the S5 discipline), weighted zone-split templates, and the `dd_lobby_cars` split-bank hybrid. The last two were the panel's recommended expressiveness extensions, but they require unbuilt engine surface and are unmeasured, and `zoned` already wins lunch — so they are **deferred** to a post-P7 optimization gated on the learned 3-mode policy plateauing below a measured hybrid oracle.
+
+### The two project-saving catches from the panel (would have silently poisoned every label)
+
+1. **CRN / frozen-future oracle bug.** The brief (and all four designs) assumed "deterministic given seed, just clone and roll." False: arrivals are drawn from a module-global `config.RNG` that `deepcopy` does not clone, so rolling candidate A then B from one cloned state gives each a *different* arrival stream — the cost gap would be arrival noise, mislabeling exactly the near-ties. **Confirmed empirically** (two clones of one state, same dispatcher, diverged) and **fixed** with Common Random Numbers (snapshot/restore `config.RNG` around every candidate). The arena was unaffected (it reseeds per run) — this was a latent bug in oracle infrastructure that did not yet exist.
+2. **Objective ≠ HC5, and the lunch myopia.** "Does a label match the single-mode HC5 grid winner" is the wrong calibration target — the deployed policy switches modes per epoch and is never committed to one mode for a whole episode. The correct target is **oracle-policy-vs-baselines full-episode**, which I measured directly: the adaptive oracle policy **beats or matches the best fixed mode in up-peak (it *beats* it by switching), down-peak, and uniform**, but **underperforms ~12% in lunch** — a precisely-characterized myopia (a bounded window rewards fast-start `conventional` over slow-starting steady-state `zoned`). Horizon does not fix it (labels stable across H=150–700); the `settle_ticks` oracle lever partially does. **Full resolution is a Stage-2 calibration task** (jointly tune cost weights + horizon + settle against the oracle-policy validation), not a freeze blocker.
+
+### Mandatory pre-GPU gate (carried forward, unproven)
+
+**G5 latency (≤2s/decision) is unverified on real `gemma4:e4b`.** The repo's own `cd6a15e` measured the *simpler* `GroupDispatchDecision` call at ~3.5s after optimization. The flat ~10-token `StructuralPlan` + per-epoch cadence + no-reasoning-field is designed to beat it, but this **must be measured on the local model before any oracle-labeling or GPU spend** (the `/verify` path). It is the one freeze decision still resting on design argument rather than measurement.

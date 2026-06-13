@@ -9,7 +9,7 @@ left at their defaults (stop_ticks=2, transfer_ticks=0, speed=1.0).
 
 from elevatorsim.core.building import Building
 from elevatorsim.core.car import Car
-from elevatorsim.core.events import PassengerDeboarded
+from elevatorsim.core.events import DoorOpened, PassengerDeboarded
 from elevatorsim.core.metrics import MetricsCollector
 from elevatorsim.core.passenger import Passenger
 from elevatorsim.core.simulation import Simulation
@@ -107,3 +107,117 @@ def test_travel_term_scales_with_floor_time():
     slow = _scripted_uppeak_trip(P, speed=0.5)
     # Highest reversal floor H = P for this scenario; up-leg travel = H·(t_v−1).
     assert slow - base == P
+
+
+# ---------------------------------------------------------------------------
+# P2 — express / rated speed (skyscraper-plan.md, gate: RTT terms hold at v > 1)
+# ---------------------------------------------------------------------------
+
+def _express_trip(speed: float):
+    """One passenger, lobby -> top of a 19-floor tower (floor 18) at rated speed.
+
+    Returns (delivery_tick, door_open_count, total_energy). The 18-floor run at
+    speed v takes ceil(18/v) move ticks — express cars cover multiple floors per
+    tick and clamp exactly onto the target (no overshoot, no mid-flight stops).
+    """
+    seed_rng(0)
+    building = Building(num_floors=19)
+    car = Car("C1", initial_floor=0, capacity=4, speed=speed)
+    metrics = MetricsCollector()
+    sim = Simulation(
+        building, car, HeuristicDispatcher(), metrics, traffic_generator=None,
+        verbose=False,
+    )
+    sim.schedule_passenger(1, Passenger("P1", 0, 18, 1))
+
+    seen = {"deboard": 0, "doors": 0}
+
+    def listen(e):
+        if isinstance(e, PassengerDeboarded):
+            seen["deboard"] = e.time
+        elif isinstance(e, DoorOpened):
+            seen["doors"] += 1
+
+    sim.register_listener(listen)
+    sim.run_until_complete(max_ticks=100_000)
+    assert len(metrics.completed_passengers) == 1
+    return seen["deboard"], seen["doors"], metrics.total_energy
+
+
+def test_express_speed_cuts_travel_by_the_t_v_term():
+    """Rated speeds > 1 floor/tick shorten travel by exactly ceil(d/v) per leg."""
+    base, doors1, energy1 = _express_trip(1.0)
+    assert doors1 == 2  # lobby pickup + top drop, nothing in between
+    for speed, ticks_saved in ((2.0, 9), (3.0, 12), (4.0, 13)):
+        t, doors, energy = _express_trip(speed)
+        assert base - t == ticks_saved, (speed, base, t)
+        # Doors never open mid-flight at any speed.
+        assert doors == 2
+        # Express saves time, not distance: energy is speed-invariant.
+        assert energy == energy1
+
+
+def test_express_fractional_speed_clamps_exactly():
+    """Non-integer rated speeds land exactly on target: ceil(18/2.5) = 8 ticks."""
+    base, _, _ = _express_trip(1.0)
+    t, doors, _ = _express_trip(2.5)
+    assert base - t == 10
+    assert doors == 2
+
+
+_DEST_FLOORS = (3, 6, 9, 12, 15, 18)
+
+
+def _round_trip_return_tick(speed: float, stop_ticks: int, transfer_ticks: int) -> int:
+    """Full up-peak round trip on the 19-floor reference cell [Report §6 geometry].
+
+    Six passengers board together at the lobby and alight at six evenly spaced
+    floors (segments of 3, so speeds 1 and 3 divide every leg exactly); a lobby
+    up-call scheduled after departure forces the express return. Returns the
+    tick the doors reopen at the lobby — the measured round-trip time.
+    """
+    seed_rng(0)
+    building = Building(num_floors=19)
+    car = Car("C1", initial_floor=0, capacity=10, speed=speed)
+    metrics = MetricsCollector()
+    sim = Simulation(
+        building, car, HeuristicDispatcher(), metrics, traffic_generator=None,
+        verbose=False, stop_ticks=stop_ticks, transfer_ticks=transfer_ticks,
+    )
+    for i, floor in enumerate(_DEST_FLOORS, start=1):
+        sim.schedule_passenger(1, Passenger(f"P{i}", 0, floor, 1))
+    # Registered after the slowest config has left the lobby (tick 12), and long
+    # before any config reverses at the top — so every run shares one route.
+    sim.schedule_passenger(14, Passenger("P7", 0, 1, 14))
+
+    ret = {"t": None}
+
+    def listen(e):
+        if isinstance(e, DoorOpened) and e.floor == 0 and e.time > 14 and ret["t"] is None:
+            ret["t"] = e.time
+
+    sim.register_listener(listen)
+    sim.run_until_complete(max_ticks=100_000)
+    assert ret["t"] is not None, "car never returned to the lobby"
+    return ret["t"]
+
+
+def test_round_trip_rtt_terms_hold_at_rated_speed():
+    """P2 gate: the RTT decomposition holds at express speed on the 19-floor cell.
+
+    Travel: up sweep (six 3-floor segments) + 18-floor express return — going
+    from t_v=1 to t_v=1/3 saves (18+18)·(1−1/3) = 24 ticks. Stops before the
+    return door: lobby + 6 destinations = 7, each charged t_s; transfers before
+    it: 6 boards + 6 alights = 12, each charged t_p. UPPINT for an L-car bank is
+    this RTT divided by L — instrumented arena-wide in P3.
+    """
+    base = _round_trip_return_tick(1.0, 2, 0)
+    express_base = _round_trip_return_tick(3.0, 2, 0)
+    assert base - express_base == 24
+
+    for speed, speed_base in ((1.0, base), (3.0, express_base)):
+        for t_s in (2, 4):
+            for t_p in (0, 1):
+                observed = _round_trip_return_tick(speed, t_s, t_p)
+                expected = speed_base + 7 * (t_s - 2) + 12 * t_p
+                assert observed == expected, (speed, t_s, t_p, observed, expected)

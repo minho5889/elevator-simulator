@@ -193,6 +193,16 @@ class Simulation:
             waiting = self.building.get_waiting_at(car.current_floor)
             boarded = []
             for p in list(waiting):
+                # Destination dispatch: a passenger assigned to a different car
+                # steps aside rather than blocking the line, and a kiosk-
+                # controlled car admits assigned passengers only (Report §3) —
+                # walk-ins stealing batch seats strands the batch and deadlocks
+                # the bank (full car forever re-targeting its pickup floor).
+                assigned = getattr(p, "assigned_car_id", None)
+                if assigned is not None and assigned != car.car_id:
+                    continue
+                if assigned is None and getattr(car, "assigned_only", False):
+                    continue
                 if car.board(p):
                     boarded.append(p)
                     self.emit(PassengerBoarded(self.current_time, p.passenger_id, car.car_id, car.current_floor))

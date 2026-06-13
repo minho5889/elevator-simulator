@@ -95,6 +95,55 @@ def get_all_cars_state() -> Dict[str, Any]:
 
 
 @tool
+def get_traffic_summary() -> Dict[str, Any]:
+    """
+    Get an aggregate traffic/regime summary for structural (skyscraper) dispatch.
+
+    The structural policy chooses a control MODE per epoch, and that choice hinges
+    on the traffic regime and building height — so this exposes the minimal
+    sufficient statistics to classify up-peak vs down-peak vs lunch vs uniform and
+    gauge load, rather than making a small model infer them from raw queues.
+
+    Returns:
+        A dictionary with num_floors, num_cars, total_waiting, total_onboard,
+        and the directional mix of waiting passengers: frac_origin_lobby (share
+        with source = floor 0, the up-peak signal), frac_dest_lobby (share bound
+        for floor 0, the down-peak signal), frac_interfloor (neither end at the
+        lobby), plus mean_wait_age (ticks) and max_floor_queue.
+    """
+    if _active_simulation is None:
+        return {"error": "No active simulation context."}
+
+    sim = _active_simulation
+    building = sim.building
+    now = sim.current_time
+
+    waiting = [
+        p for f in range(building.num_floors) for p in building.get_waiting_at(f)
+    ]
+    total = len(waiting)
+    origin_lobby = sum(1 for p in waiting if p.source_floor == 0)
+    dest_lobby = sum(1 for p in waiting if p.target_floor == 0)
+    interfloor = sum(1 for p in waiting if p.source_floor != 0 and p.target_floor != 0)
+    max_queue = max(
+        (len(building.get_waiting_at(f)) for f in range(building.num_floors)),
+        default=0,
+    )
+
+    return {
+        "num_floors": building.num_floors,
+        "num_cars": len(sim.cars),
+        "total_waiting": total,
+        "total_onboard": sum(c.passenger_count for c in sim.cars),
+        "frac_origin_lobby": round(origin_lobby / total, 3) if total else 0.0,
+        "frac_dest_lobby": round(dest_lobby / total, 3) if total else 0.0,
+        "frac_interfloor": round(interfloor / total, 3) if total else 0.0,
+        "mean_wait_age": round(sum(now - p.spawn_time for p in waiting) / total, 2) if total else 0.0,
+        "max_floor_queue": max_queue,
+    }
+
+
+@tool
 def get_floor_calls() -> Dict[str, List[Dict[str, Any]]]:
     """
     Get lists of passengers waiting on each floor (hall calls).

@@ -2,6 +2,8 @@
 
 *Plan of record for making the local `gemma4:e4b` model (8.0B params, ~4B active, Q4_K_M, Ollama) a genuinely strong AI Brain, using Antigravity + Gemini 3.5 as the teacher/judge stack. Grounded throughout in `docs/research/elevator-dispatch-algorithms.md` (cited as [Report §n]).*
 
+> **Amendment (2026-06-12) — skyscraper pivot + action-space freeze complete.** `docs/skyscraper-plan.md` moved the learned action space up a layer: a per-epoch `StructuralPlan` (mode + hold), not a next-floor pick. The freeze is **done** — the contract (`policy/schemas.py` `StructuralPlan`), execution (`policy/structural.py`), input tools (`tools/sim_tools.py` incl. `get_traffic_summary`), and the CRN oracle (`scripts/oracle.py`) are built and gated. Stages 1–3 below are **re-specced against it** and Lane B is open (WO-001..003). Stage 0 and the Stage 4–6 mechanics are unaffected.
+
 ---
 
 ## 1. Objective and success criteria
@@ -54,27 +56,37 @@ Extend the existing core into a headless arena runner (`scripts/arena.py`):
 
 **Why first:** every later stage needs this to score labels, filter data, and gate releases. Without it we'd be training blind.
 
-### Stage 1 — Harvest decision points
+> **Re-specced 2026-06-12 against the frozen structural action space** (`docs/skyscraper-plan.md` §7). The action is now a per-epoch `StructuralPlan` (`mode` ∈ {conventional, dd_delayed, zoned} × `hold` ∈ {depart_now, balanced, fill_batch}), not a per-car next floor. The oracle is built and gated (`scripts/oracle.py`, `tests/test_structural.py`).
 
-Run LOOK-driven and random-policy episodes across the full config grid (regimes × floors × cars × weight limits × seeds) and dump every dispatcher decision point as a JSON state snapshot — exactly the state the `DispatcherAgent` tools expose (`get_all_cars_state`, `get_floor_calls`, now weight-aware). Include episodes where cars run full (refusal-rich states are the differentiating curriculum, G3).
+### Stage 1 — Harvest decision-point descriptors
 
-Target: **50k–100k raw decision points**, deduplicated by state hash, stratified so each regime is ≥20% of the corpus — the Crites & Barto failure to avoid is training on one regime only [Report §4.2: "down-peak profile only"].
+A decision point is an **epoch-boundary state** (≥ 1 measured RTT apart), not a per-tick state. Because the simulator is deterministic given a seed, a decision point is stored as a compact **descriptor** — `(regime, seed, floors, cars, capacity, arrival_rate, stop_ticks, transfer_ticks, warmup_mode, harvest_tick)` — that Stage 2 reconstructs exactly via `oracle.harvest_state(...)`, rather than pickling 50k full simulation states. Determinism is the storage format.
+
+Sampling grid: regimes × heights (20–60 floors) × cars (4–12) × arrival_rate (moderate 0.4 → super-saturated 2.0) × weight limits × seeds, **× warmup_mode** (run the warmup under each of the three structural modes *and* a mode-switching policy). The warmup-mode sweep is mandatory and is a finding of the freeze: a single-mode warmup biases the harvested state toward that mode (measured — a conventional-warmed state under-credits `zoned`), so the corpus must cover the states each mode actually produces. Oversample refusal-rich (tight weight-limit) cells (G3 curriculum). Target **~50k descriptors**, stratified so each regime is ≥ 20% and each height band is represented — the Crites & Barto trap is one-regime training [Report §4.2].
+
+**Lane B — WO-001.** Pure stratified enumeration/sampling logic; gate-testable on stratification proportions, count, and determinism. No engine edits.
 
 ### Stage 2 — Label generation (two tiers)
 
-**Tier A — Oracle labels (bulk, free, local).** For each harvested state, enumerate candidate target floors per idle car; roll the simulator forward H≈12–20 ticks per candidate (clone sim state, deterministic); score with the report's cost function shape — `cost = mean_wait + λ₁·P95_wait + λ₂·energy + λ₃·refusals` [Report §2.2: cost-function design is the design space]. The argmin is the label. This is brute-force lookahead the report's production systems can't afford in 500 ms but we can offline. Estimated: ~1–2 s per state on the M4 → run overnight, parallelized; budget ~50k labeled states.
+**Tier A — Oracle labels (bulk, free, local).** For each descriptor: reconstruct the state (`harvest_state`), call `oracle.label_decision(sim, horizon, weights, settle_ticks)` — which enumerates all **9** candidate plans (constant in N and L), rolls each forward under **Common Random Numbers** (the snapshot/restore that makes candidates differ only by action — see the freeze §7 catch #1), and returns the argmin-cost plan with an explicit tie-break. Measured throughput: ~1.5–4 ms per candidate → ~50k labels in well under an hour on the M4, ~8× headroom.
 
-**Tier B — Teacher rationales (small, high-quality, Antigravity).** Sample 3–5k diverse states (stratified, refusal-heavy oversampled). In Antigravity, prompt Gemini 3.5 with: the state JSON + the *oracle's answer* + the report's §8 implementation principles, asking for a **≤60-token rationale** that justifies the oracle move (stop-count reduction, batching, weight headroom, starvation guard). The teacher explains; the oracle decides. Discard any sample where Gemini argues for a different floor than the oracle unless re-simulation shows Gemini's move scores better (then keep Gemini's — free label improvement).
+**Cost-function + horizon + settle calibration is the Stage-2 Lane-A deliverable, and it is load-bearing** [freeze §7 catch #2]. The labels' quality is judged by the *oracle policy*, not by matching a single-mode HC5 grid: drive a `StructuralDispatcher(plan_provider=oracle)` full-episode across all regimes and tune `weights` / `horizon` / `settle_ticks` until the oracle policy ≥ the best fixed mode **in every regime** (current defaults already clear up-peak/down-peak/uniform; lunch is ~12% short and is the calibration target). Lock the chosen `(weights, horizon, settle_ticks)` before bulk labeling.
 
-> **Quota warning:** the repo's Gemini API key is free-tier — 20 requests/day (verified when preset generation silently fell back to mock). Tier B at 3–5k calls requires your Antigravity/AI-Pro quota or a paid key. Batch 10 states per call to cut request count 10×.
+**Tier B — Teacher rationales (Antigravity, Gemini 3.5).** Sample 3–5k diverse labeled descriptors (stratified, refusal-heavy oversampled). Prompt Gemini with the serialized state view + the oracle's chosen plan + the full scored candidate table + Report §8 principles, asking for a **≤40-token rationale** justifying the plan in dispatching terms (regime → mode, stop-batching, tail guard, parking). The oracle decides; the teacher explains. Gemini never overrides the plan — disagreements are flagged for re-simulation, never substituted [`docs/antigravity-master-prompt.md` §6].
+
+> **Quota warning:** the repo's Gemini key is free-tier (20 req/day). Tier B needs your Antigravity/AI-Pro quota; batch 10 states per call.
 
 ### Stage 3 — Dataset assembly
 
-Each training sample = the **exact production I/O contract**:
-- *Input:* the dispatcher system prompt (current `agentic.py` gemma variant, frozen) + serialized state.
-- *Output:* `{"reasoning": "<≤60 tokens>", "target_floors": {"C1": n, ...}}` — short reasoning then decision, matching the structured-output path the agent already parses. Short outputs are also the G5 latency lever.
+Each training sample = the **exact frozen production I/O contract** (`policy/schemas.py` + the three tools):
+- *Input:* the structural system prompt + the serialized view of `get_all_cars_state` + `get_floor_calls` + `get_traffic_summary` (`json.dumps(sort_keys=True)`).
+- *Output:* a `StructuralPlan` JSON — `{"mode": "...", "hold": "..."}`. **No reasoning field on Gemma's output** (the single biggest G5 latency win); teacher rationales live in a separate, teacher-only field used for the optional reasoning-distillation variant, never decoded at inference.
 
-Mix: ~85% oracle-only samples (reasoning omitted or templated one-liner), ~15% teacher-rationale samples. Hold out: 2 full seeds per regime cell, plus one entire config never seen in training (e.g., 9 floors / 3 cars) to measure generalization. QC pass in Antigravity: Gemini 3.5 as judge spot-checks 500 random samples for label/state consistency.
+Mix: ~85% plan-only samples, ~15% with teacher rationale (for the reasoning-distillation ablation). Hold out: 2 seeds per regime cell, plus one entire config never seen in training (e.g., 52 floors / 10 cars) for generalization. QC: Gemini-as-judge spot-checks 500 samples for state/label consistency.
+
+**Lane B — WO-002 (label driver) + WO-003 (assembly).** The labeling loop and the record assembler are well-specified scripts over the Lane-A oracle and frozen schemas; gate-tested on schema validity and determinism. The cost-weight calibration and the format-fidelity audit below stay Lane A.
+
+**Format-fidelity audit (pre-GPU gate):** before any Stage-4 spend, a Lane-A audit (Claude, this repo) validates ~500 assembled records by round-tripping them through the production Strands structured-output schemas (`policy/schemas.py`) and re-rendering the exact chat template the trainer will use. Template/format mismatch is the #1 silent SFT killer; catching it here costs minutes, catching it at Stage 5 (G4) costs a GPU run.
 
 ### Stage 4 — LoRA fine-tune (decision fork)
 
@@ -101,13 +113,26 @@ Generate best-of-4 samples from the fine-tuned model per held-out state; score e
 
 ---
 
-## 4. Division of labor
+## 4. Division of labor — three execution lanes
 
-| Workstream | Tool | Notes |
-|---|---|---|
-| Arena runner, harvesting, oracle labeling, GGUF/Ollama deploy, final evaluation | **This repo / Claude Code** | All local, simulator-native |
-| Teacher rationales, judge QC, training-script authoring, cloud-GPU run babysitting | **Antigravity + Gemini 3.5** | Where your Gemini quota lives; hand it `docs/research/elevator-dispatch-algorithms.md` §8 as the system context for labeling |
-| LoRA compute | Cloud GPU (Option A) | One-off cost, ~$5–20 for the full run on a rented A100 |
+**Writer/auditor protocol.** The strong model (Claude, this repo) authors the spec and the *failing gate tests first*; Gemini 3.5 Flash (Antigravity) writes volume code against them; the audit then reduces to running the gates plus a targeted diff review (RNG discipline, I/O-contract drift, report fidelity) instead of open-ended code reading. Decision rule: **delegate to Flash only where spec + tests fully determine correctness.** Where correctness lives in modeling judgment, the strong model writes — the two real defects so far (zero stop-time engine, AWT survivorship bias) were modeling errors that passed every test and were caught only by reasoning against the report.
+
+| Lane | Workstream | Writer | Verified by | Notes |
+|---|---|---|---|---|
+| **A — Instrument & engine** | Arena, Tier-3 timing, metrics, destination-dispatch/zoning engine (skyscraper P2–P6), oracle scorer, all gate tests, GGUF/Ollama deploy, final evaluation | **Claude (this repo)** | Gates S1–S5 / G1–G5 | Judgment-bound, not volume-bound; errors here silently poison every downstream label |
+| **B — Volume code** | Stage-1 harvest scripts, labeling notebooks, Unsloth/PEFT training script, plotting, GPU-babysitting glue | **Gemini 3.5 Flash (Antigravity)** | Pre-written Lane-A gate tests + Claude diff audit | **Closed until skyscraper P4–P5 freeze the new action space.** Prompt Flash with invariants as *prohibitions*: never consume `config.RNG` outside seeded paths; never alter Tier 0–2 timing defaults; output must match the exact frozen schema |
+| **C — Semantic work** | Tier B teacher rationales, judge QC spot-checks | **Gemini 3.5 as teacher/judge (Antigravity)** | Oracle re-simulation of disagreements | Gemini's highest-value role; hand it Report §8 as system context |
+| — | LoRA compute (Stage 4) | Cloud GPU (Option A) | Stage-5 arena gates | One-off cost, ~$5–20 for the full run on a rented A100 |
+
+### Strands SDK role
+
+Strands is the **production harness and the format anchor** — load-bearing at three points, deliberately absent everywhere else:
+
+1. **Harvest serialization (Stage 1).** State snapshots must be produced by the same Strands tool functions the agent uses at inference (`tools/sim_tools.py`: `get_all_cars_state`, `get_floor_calls`), so training states are byte-identical to production input. One serializer, two consumers.
+2. **The frozen I/O contract (Stage 3).** The training sample format *is* the Strands artifact: `agentic.py` system prompt + `policy/schemas.py` structured-output models. G4 (≥99.5% valid output) is enforced through Strands' structured-output path; the format-fidelity audit round-trips records through those same pydantic models.
+3. **Deployment & evaluation (Stage 5 / skyscraper P7).** The fine-tuned model runs inside `DispatcherAgent`, and the skyscraper action space (destination assignment, zone maps) is defined *as* Strands tools + schemas — so the harness and the training contract remain one artifact.
+
+**Where Strands stays out:** oracle labeling and arena baselines. Stage 2 Tier A is ~50k deterministic rollouts where wall-clock and RNG discipline dominate; wrapping them in an agent loop buys nothing and risks both.
 
 ## 5. Risks and mitigations
 

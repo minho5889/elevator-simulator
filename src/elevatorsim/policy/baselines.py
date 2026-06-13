@@ -32,6 +32,7 @@ Rung semantics, and why each is a rung:
 from typing import Any, Dict, List, Optional, Set
 
 from elevatorsim.policy.base import Dispatcher
+from elevatorsim.policy.heuristic import GroupHeuristicDispatcher
 
 
 def _active_request_floors(car: Any, building: Any) -> Set[int]:
@@ -138,3 +139,39 @@ class ETACostDispatcher(Dispatcher):
         new_dir = 1 if target > current else (-1 if target < current else committed)
         self._committed_dir[car.car_id] = new_dir
         return target
+
+
+class MainTerminalParkingLook(GroupHeuristicDispatcher):
+    """LOOK group control + main-terminal parking — the conventional-control rung.
+
+    Naive nearest-idle LOOK leaves cars idle wherever they last delivered, so in
+    up-peak only the car holding the lobby call cycles and the rest of the bank
+    sits stranded upstairs (measured: ~half the bank's capacity wasted on the
+    Report §6 reference building). Standard conventional practice parks empty
+    idle cars back at the main terminal so the next car is already loading when
+    the previous one departs — the single-lobby-door serial-loading reality that
+    makes up-peak the limiting regime [Report §1.3; §2.3 up-peak strategies].
+
+    This subclass adds exactly that: any idle, empty, unassigned car not at the
+    terminal is sent to floor 0. It exists as a separate ladder rung (arena name
+    ``look_park``) so the frozen production LOOK used by the web presets keeps
+    byte-identical behaviour. This is the reference configuration for gate S2
+    [docs/skyscraper-plan.md].
+
+    Engine note: dispatchers are only consulted while the system has pending
+    work, so parking can lag until the next spawn in fully drained moments —
+    irrelevant under the saturated traffic where this rung is measured.
+    """
+
+    def dispatch_group(self, simulation: Any) -> Dict[str, int | None]:
+        assignments = super().dispatch_group(simulation)
+        for car in simulation.cars:
+            if (
+                car.door_state == "CLOSED"
+                and car.target_floor is None
+                and car.car_id not in assignments
+                and car.passenger_count == 0
+                and car.current_floor != 0
+            ):
+                assignments[car.car_id] = 0
+        return assignments

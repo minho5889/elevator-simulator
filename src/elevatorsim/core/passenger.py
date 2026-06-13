@@ -40,6 +40,9 @@ class Passenger:
         self.target_floor = target_floor
         self.spawn_time = spawn_time
         self.weight_kg = weight_kg if weight_kg is not None else default_weight_kg(passenger_id)
+        # Destination dispatch: when set, this passenger boards only the named
+        # car (kiosk assignment — Report §3). None = conventional hall call.
+        self.assigned_car_id: str | None = None
 
         # Timing metrics to be filled during simulation
         self.board_time: int | None = None

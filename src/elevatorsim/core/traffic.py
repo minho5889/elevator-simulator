@@ -43,12 +43,29 @@ class TrafficGenerator:
         Returns:
             List of generated Passenger entities for this tick (empty list if no spawn)
         """
+        # Super-saturation (arrival_rate > 1): spawn floor(rate) passengers per
+        # tick plus a Bernoulli fractional extra. Needed to demand more than
+        # one passenger per second — destination dispatch's verified up-peak
+        # capacity exceeds what 1/tick can supply [Report §6]. The legacy
+        # rate <= 1 path below is byte-identical (same RNG draw order), which
+        # the recorded preset caches and determinism tests depend on.
+        if self.arrival_rate > 1.0:
+            count = int(self.arrival_rate)
+            fraction = self.arrival_rate - count
+            if fraction > 0.0 and rng.random() < fraction:
+                count += 1
+            return [self._spawn_one(tick, rng) for _ in range(count)]
+
         if rng.random() >= self.arrival_rate:
             return []
 
+        return [self._spawn_one(tick, rng)]
+
+    def _spawn_one(self, tick: int, rng: random.Random) -> Passenger:
+        """Generate one passenger according to the active profile."""
         self.passenger_counter += 1
         passenger_id = f"P{self.passenger_counter}"
-        
+
         source = 0
         target = 0
 
@@ -87,10 +104,9 @@ class TrafficGenerator:
                 source = rng.randint(0, self.num_floors - 1)
                 target = rng.choice([f for f in range(self.num_floors) if f != source])
 
-        passenger = Passenger(
+        return Passenger(
             passenger_id=passenger_id,
             source_floor=source,
             target_floor=target,
             spawn_time=tick
         )
-        return [passenger]

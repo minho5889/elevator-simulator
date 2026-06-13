@@ -22,13 +22,22 @@ class Car:
             car_id: Unique identifier for the car
             initial_floor: Starting floor
             capacity: Maximum passenger headcount
-            speed: Physical speed in floors per tick
+            speed: Physical speed in floors per tick. Values > 1 are express /
+                rated speeds: the car covers multiple floors per tick and clamps
+                exactly onto its target (a d-floor leg takes ceil(d/speed)
+                ticks). Acceleration/deceleration is not modeled — it is folded
+                into the per-stop penalty (``Simulation.stop_ticks``), per the
+                standard RTT treatment [Report §8].
             max_weight_kg: Total weight limit; None disables the weight check
         """
         self.car_id = car_id
         self.current_position = float(initial_floor)
         self.target_floor: int | None = None
         self.direction = 0  # 1: UP, -1: DOWN, 0: STANDBY/IDLE
+        # Destination dispatch: when True, only passengers assigned to this car
+        # may board (kiosk turnstile — Report §3). Set by DD dispatchers;
+        # False preserves conventional walk-in boarding exactly.
+        self.assigned_only = False
         self.door_state = "CLOSED"  # "CLOSED", "OPEN"
         self.door_timer = 0  # Ticks remaining for door open state
         self.passengers: List[Passenger] = []
