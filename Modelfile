@@ -1,0 +1,22 @@
+# Modelfile for Gemma 4 e4b Elevator Dispatcher
+# Reference: docs/training-plan.md Stage 5
+
+FROM gemma4:e4b
+
+# System parameters for deterministic structural mode selection
+PARAMETER temperature 0.0
+PARAMETER top_p 0.0
+PARAMETER num_ctx 4096
+PARAMETER stop "<end_of_turn>"
+PARAMETER stop "<eos>"
+
+# Official Gemma chat template template syntax matching the HF tokenizer format
+TEMPLATE """{{ if .System }}<start_of_turn>user
+{{ .System }}
+
+{{ .Prompt }}<end_of_turn>
+{{ else }}<start_of_turn>user
+{{ .Prompt }}<end_of_turn>
+{{ end }}<start_of_turn>model
+{{ .Response }}<end_of_turn>
+"""
