@@ -1,7 +1,6 @@
 # WO-003: Stage-3 dataset assembly
 Branch: laneb/wo-003
-Status: SPEC — gate test authored (tests/test_assemble.py); ready when WO-002
-        labels exist (WO-002 is merged) and Tier-B rationales are produced
+Status: HANDBACK
 
 ## Goal
 Implement `scripts/assemble.py`: turn WO-002 labeled records into trainer-ready
@@ -86,7 +85,11 @@ Currently skips (no `assemble.py`); becomes enforced on implementation:
   StructuralPlan; train/held-out disjoint with the unseen config held out.
 
 ## Writer handback
-<filled by Antigravity>
+- **Implementation**: Created `scripts/assemble.py` implementing `build_sample(record: dict, rationale: str | None = None)`, `split(records: list[dict])`, and `assemble(records: list[dict], rationales: dict | None = None)`.
+- **Formatting**: SFT samples are built strictly using the `build_structural_messages` and `structural_target_json` anchors from `elevatorsim.policy.structural`.
+- **Metadata**: Out-of-band `descriptor` is preserved on every sample, and `rationale` is optionally added as metadata on ~15% of samples (neither leaks into messages).
+- **Split validation**: Held-out split isolates two seeds per regime and the unseen `(floors=52, cars=10)` configuration.
+- **Verification**: Verified using `tests/test_assemble.py` (all 7 tests passed).
 
 ## Audit findings
 <filled by Claude>
