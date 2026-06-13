@@ -104,9 +104,17 @@ Hyperparameter starting points: LoRA r=16, α=32, lr 1e-4 cosine, 2–3 epochs, 
 ### Stage 5 — Deploy and evaluate
 
 1. Merge LoRA → convert to GGUF (llama.cpp `convert_hf_to_gguf.py`, Q4_K_M to match current footprint) → `ollama create elevator-gemma -f Modelfile`.
-2. Point the simulator at it: Settings → Ollama model id `elevator-gemma` (no code changes needed — already configurable, commit `9c471f7` lineage).
-3. Run the Stage-0 arena: fine-tuned model vs full baseline ladder, all regimes, held-out seeds. Gate on G1–G5.
+2. Point the arena at it: `structural:elevator-gemma` rung (or `OLLAMA_MODEL_ID=elevator-gemma`). The P7 inference surface (`policy/structural_agent.py`) needs no code change — the fine-tuned model drops into the validated direct-`ollama.chat` path.
+3. Run the Stage-0 arena: fine-tuned `structural` vs the full baseline ladder, all regimes, held-out seeds. Gate on G1–G5 (and the per-regime structural winner grid).
 4. If gates pass: regenerate presets with the new model (`LLM_PROVIDER=gemma`, see memory note — verify no mock fallback), confirm the preset races still tell an honest story, ship.
+
+**Pre-GPU train==prod checklist (from the format-fidelity audit, skyscraper-plan §7 — a format slip here silently poisons the whole run, attributable to no metric):**
+- [ ] **Modelfile is version-controlled and uses Gemma's official `chat_template`** — the SAME one the trainer applies. Do NOT use Ollama's default (it folds the system role into the first user turn; Gemma has no native system turn). [G1]
+- [ ] **EOS / `<end_of_turn>` injection** comes from that chat_template; a one-epoch pilot, decoded ONCE without the GBNF grammar, ends cleanly after the JSON (proves the model learned to stop). [G2]
+- [ ] **Render-identity gate**: `tokenizer.apply_chat_template(build_structural_messages(iv) + assistant)` token-ids == Ollama's rendering for the same Modelfile. (`tests/test_assemble.py` has the skip-guarded placeholder; wire it once a Modelfile + `transformers` exist.) [G1/G2]
+- [ ] **Tokenizer / special-token identity** across the HF base used for LoRA, the merge, and the Q4_K_M GGUF — a vocab/added-token mismatch at convert time corrupts every prompt. [uncovered]
+- [ ] **Modelfile PARAMETERs don't fight inference**: `temperature 0`, `num_ctx >= max assembled sample length`, no stray `top_p`/`repeat_penalty` defaults; Unsloth `max_seq_len >= longest sample`. [uncovered]
+- [ ] **input_view parity** is gated (`tests/test_label.py::test_input_view_parity_train_vs_inference`) — train and serve build the model's sole input identically. [G3, done]
 
 ### Stage 6 — Optional preference round (only if SFT plateaus above LOOK but below oracle)
 

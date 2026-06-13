@@ -130,9 +130,10 @@ def test_anchor_build_structural_messages():
 
 
 def test_anchor_target_json_is_canonical_and_parses():
-    """The assistant target is minimal (mode+hold only), compact, and re-parses."""
+    """The assistant target is minimal (mode+hold only), standard-spaced, parses."""
     s = structural_target_json(StructuralPlan(mode="zoned", hold="fill_batch"))
-    assert s == '{"mode":"zoned","hold":"fill_batch"}'  # exact canonical form
+    assert s == '{"mode": "zoned", "hold": "fill_batch"}'  # exact canonical form
+    assert json.loads(s) == {"mode": "zoned", "hold": "fill_batch"}  # no extra keys
     back = StructuralPlan.model_validate_json(s)
     assert (back.mode, back.hold) == ("zoned", "fill_batch")
 
@@ -144,6 +145,26 @@ def test_inference_builds_prompt_through_the_anchor():
     src = inspect.getsource(LLMStructuralProvider._query_model)
     assert "build_structural_messages" in src
     assert "Traffic summary:" not in src  # no inline duplicate of the template
+
+
+@pytest.mark.skipif(
+    not (Path(__file__).resolve().parents[1] / "Modelfile").exists(),
+    reason="Modelfile not yet committed (Stage 5) — chat-template render-identity gate",
+)
+def test_chat_template_render_identity():
+    """Pre-GPU gate [format-fidelity audit G1/G2]: the LoRA trainer's chat_template
+    and the served GGUF Modelfile template MUST render the anchor messages to the
+    same token ids (incl. BOS / <start_of_turn> / <end_of_turn> / <eos>), or the
+    fine-tuned model is trained on one token stream and served another.
+
+    Scaffolded gate-first; implement when a committed Modelfile + `transformers`
+    exist. See docs/training-plan.md Stage 5 'Pre-GPU train==prod checklist'."""
+    transformers = pytest.importorskip("transformers")
+    sample_user = build_structural_messages('{"frac_origin_lobby": 1.0}')
+    # HF side: tokenizer.apply_chat_template(sample_user + assistant target)
+    # Ollama side: render the same via the committed Modelfile template.
+    # Assert the token-id sequences are identical.
+    pytest.skip("implement at Stage 5 against the committed Modelfile + HF tokenizer")
 
 
 def _ollama_ready() -> bool:

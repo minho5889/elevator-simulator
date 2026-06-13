@@ -100,23 +100,48 @@ def test_every_assembled_output_parses_as_structural_plan():
         StructuralPlan.model_validate_json(sample["messages"][2]["content"])
 
 
-def test_split_has_no_leakage():
-    """Held-out seeds/config never appear in train (no train/eval contamination)."""
+def test_samples_carry_descriptor_metadata_out_of_band():
+    """Each sample must carry its descriptor as metadata (NOT in messages) so the
+    split is auditable at the descriptor level — the only leakage-proof basis."""
+    sample = assemble.build_sample(_record(seed=42, regime="lunch"))
+    assert sample["descriptor"]["seed"] == 42 and sample["descriptor"]["regime"] == "lunch"
+    assert "42" not in json.dumps(sample["messages"])  # descriptor never leaks into the prompt
+
+
+def test_split_has_no_leakage_at_descriptor_level():
+    """Held-out seeds/config never appear in train — checked on descriptors, not
+    on RNG-dependent rendered messages (format-fidelity gap G5)."""
     recs = (
         [_record(seed=s, regime=r) for s in range(30) for r in ("up_peak", "lunch")]
         + [_record(seed=900, floors=52, cars=10, regime="uniform")]  # the unseen config
     )
     out = assemble.assemble(recs)
-    train_ids = {(s["messages"][1]["content"]) for s in out["train"]}
-    held_ids = {(s["messages"][1]["content"]) for s in out["heldout"]}
-    assert train_ids.isdisjoint(held_ids)
-    # The unseen-config sample must be held out, never trained on.
-    held_floors = {json.loads(_input_view_of(s)).get("num_floors") for s in out["heldout"]}
-    train_floors = {json.loads(_input_view_of(s)).get("num_floors") for s in out["train"]}
-    assert 52 in held_floors and 52 not in train_floors
+
+    def key(s):
+        d = s["descriptor"]
+        return (d["regime"], d["seed"])
+
+    train_keys = {key(s) for s in out["train"]}
+    held_keys = {key(s) for s in out["heldout"]}
+    assert train_keys.isdisjoint(held_keys)  # no (regime, seed) in both
+
+    # The unseen (52, 10) config is 100% held out, 0% trained on.
+    train_cfgs = {(s["descriptor"]["floors"], s["descriptor"]["cars"]) for s in out["train"]}
+    held_cfgs = {(s["descriptor"]["floors"], s["descriptor"]["cars"]) for s in out["heldout"]}
+    assert (52, 10) in held_cfgs and (52, 10) not in train_cfgs
+
+    # Exactly 2 held-out seeds per regime (per-regime generalization discipline).
+    for regime in ("up_peak", "lunch"):
+        held_seeds = {s["descriptor"]["seed"] for s in out["heldout"]
+                      if s["descriptor"]["regime"] == regime and s["descriptor"]["floors"] != 52}
+        assert len(held_seeds) == 2, (regime, held_seeds)
 
 
-def _input_view_of(sample: dict) -> str:
-    """Recover the input_view from a sample's user message (after the template)."""
-    user = sample["messages"][1]["content"]
-    return user[len("Traffic summary: "):-len("\nPlan:")]
+def test_rationale_distribution_is_roughly_85_15():
+    """When rationales are supplied, ~15% of samples carry one (±5%), in both splits."""
+    recs = [_record(seed=s, regime="up_peak") for s in range(100)]
+    rationales = {s: "lobby peak -> dd" for s in range(100)}  # available for all
+    out = assemble.assemble(recs, rationales=rationales)
+    samples = out["train"] + out["heldout"]
+    frac = sum("rationale" in s for s in samples) / len(samples)
+    assert 0.10 <= frac <= 0.20, frac

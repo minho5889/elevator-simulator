@@ -24,12 +24,37 @@ Each labeled record -> one sample:
     {"role": "user",      "content": <build_structural_messages[1].content>},
     {"role": "assistant", "content": <structural_target_json(plan)>}   # bare {mode,hold}
  ],
- "rationale": "<≤40-token teacher text>"     # OPTIONAL, teacher-only, NEVER in messages
+ "descriptor": <record["descriptor"]>,        # REQUIRED out-of-band metadata (see Split)
+ "rationale": "<≤40-token teacher text>"      # OPTIONAL, teacher-only, NEVER in messages
 }
 ```
+- Carry `descriptor` on every sample as out-of-band metadata (NOT inside
+  `messages`) so the split is auditable at the descriptor level — the gate checks
+  leakage on `(regime, seed)`, not on RNG-dependent rendered prompts.
 - ~85% plan-only (no `rationale` key), ~15% with a Tier-B rationale (the
-  reasoning-distillation ablation set). The rationale is metadata only — it must
-  never appear inside `messages`, or it corrupts what the model learns to emit.
+  reasoning-distillation ablation set), applied to BOTH train and held-out. The
+  rationale is metadata only — it must never appear inside `messages`, or it
+  corrupts what the model learns to emit.
+- Emit assistant `content` as a BARE JSON plan with NO turn terminator / EOS in
+  the string. Turn terminators are the trainer's chat_template's job (next
+  section) — hand-rolling `<end_of_turn>` here would double-inject.
+
+## Chat template, EOS & the Modelfile — owned by Stage 4/5, gated before GPU
+The adversarial format-fidelity audit (skyscraper-plan §7) flagged the train!=prod
+risks that live OUTSIDE assembly. Assembly's contract is only role/content
+messages; these are the binding requirements on the trainer and the Modelfile:
+- **One chat_template, both sides.** The LoRA trainer (Unsloth/PEFT) and the
+  served GGUF Modelfile MUST both use Gemma's official `chat_template` — the same
+  one from the HF model used for the fine-tune. Do NOT rely on Ollama's default
+  template: it can fold the system role into the first user turn, and Gemma has
+  no native system turn, so the served token stream would differ from training.
+- **EOS injection** comes from that chat_template (`<end_of_turn>`/`<eos>`); the
+  pilot must confirm the model learned to stop (one non-grammar-constrained decode
+  that ends cleanly after the JSON).
+- The exact Modelfile is version-controlled at Stage 5 (`docs/training-plan.md`),
+  with `num_ctx >= max assembled sequence length`, `temperature 0`, and the stop
+  token set. A render-identity gate (HF `apply_chat_template` token ids ==
+  Ollama's) gates the GPU run.
 
 ## Required functions (the gate imports these by name)
 - `build_sample(record: dict, rationale: str | None = None) -> dict`

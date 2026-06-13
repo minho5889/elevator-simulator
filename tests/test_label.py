@@ -79,6 +79,22 @@ def test_global_rng_unperturbed_across_run():
     assert config.RNG.getstate() == before
 
 
+def test_input_view_parity_train_vs_inference():
+    """The model's ONLY input must be byte-identical at train and serve time.
+
+    label.py builds input_view (training); structural_agent.render_traffic_summary
+    builds it (inference). They must agree exactly — a divergence here is silent
+    train != prod on the sole input. (Format-fidelity gap G3.)
+    """
+    from elevatorsim.policy.structural_agent import render_traffic_summary
+    for regime, seed in (("up_peak", 7), ("lunch", 8), ("down_peak", 9), ("uniform", 10)):
+        d = _desc(regime=regime, seed=seed)
+        train_iv = label.label_descriptor(d)["input_view"]
+        kwargs = {k: v for k, v in d.items()}
+        serve_iv = render_traffic_summary(oracle.harvest_state(**kwargs))
+        assert train_iv == serve_iv, (regime, seed)
+
+
 def test_switching_and_weight_limit_descriptors_label():
     sw = label.label_descriptor(_desc(regime="lunch", warmup="switching", harvest_tick=300))
     assert StructuralPlan(**sw["label"]).mode in ("conventional", "dd_delayed", "zoned")

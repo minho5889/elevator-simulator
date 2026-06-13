@@ -71,9 +71,15 @@ def build_structural_messages(
 
 def structural_target_json(plan: StructuralPlan) -> str:
     """The canonical assistant-target string for a plan — what the model is
-    trained to emit and what it must produce at inference. Field order matches
-    the schema (mode, hold); compact separators; no trailing whitespace."""
-    return json.dumps({"mode": plan.mode, "hold": plan.hold}, separators=(",", ":"))
+    trained to emit at inference. Field order matches the schema (mode, hold).
+
+    Uses standard ``json.dumps`` spacing (``{"mode": "x", "hold": "y"}``) rather
+    than ultra-compact: whitespace is parse-moot at inference (the production
+    path validates with ``StructuralPlan.model_validate_json``, which accepts any
+    spacing), and standard spacing is closer to the model's natural grammar-
+    constrained output, so the fine-tune relearns less [G5 finding; the SFT
+    format-fidelity audit, skyscraper-plan §7]."""
+    return json.dumps({"mode": plan.mode, "hold": plan.hold})
 
 
 # Departure-control presets: hold name -> (batch_threshold, patience_ticks).

@@ -46,11 +46,17 @@ def render_traffic_summary(simulation: Any) -> str:
     gate proved the full call dump (~17 KB) overflows the model's context and
     truncates output. The summary (~200 chars) is the sufficient statistic for
     the structural mode decision.
+
+    MUST call ``get_traffic_summary()`` exactly as ``scripts/label.py`` does, so
+    the training input_view and the served input_view are byte-identical — this
+    is the model's only input. The render-parity gate (tests) enforces it. (A
+    prior ``tool.func() if hasattr(...)`` guard was removed: the Strands wrapper
+    has no ``.func`` today, but the dead branch was a version-bump landmine that
+    could silently split the two serializers.)
     """
     set_active_simulation(simulation)
     try:
-        tool = get_traffic_summary
-        summary = tool.func() if hasattr(tool, "func") else tool()
+        summary = get_traffic_summary()
     finally:
         clear_active_simulation()
     return json.dumps(summary, sort_keys=True)
