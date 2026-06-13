@@ -37,3 +37,6 @@ scratch/
 
 # Generated training data (Stage-1 descriptors, Stage-2 labels, etc.)
 data/
+
+# Playwright verification screenshots
+arena-*.png

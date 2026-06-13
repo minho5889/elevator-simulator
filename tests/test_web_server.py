@@ -55,7 +55,7 @@ def test_api_simulate_validation():
     """Verify simulate endpoint rejects invalid floor numbers."""
     payload = {
         "seed": 42,
-        "num_floors": 12,  # Invalid: max is 10
+        "num_floors": 61,  # Invalid: max is 60 (skyscraper cap)
         "arrival_rate": 0.2,
         "profile": "UNIFORM",
         "max_ticks": 20,
@@ -231,7 +231,6 @@ def test_dispatcher_agent_concurrency_isolation():
     """Verify that DispatcherAgent instances are fully isolated and do not mutate environment variables."""
     import os
     from elevatorsim.policy.agentic import DispatcherAgent
-    from elevatorsim.config import get_llm_provider
 
     # Clear environment variables to verify fallbacks work and don't collide
     old_provider = os.environ.get("LLM_PROVIDER")
@@ -312,11 +311,84 @@ def test_websocket_simulate_custom_car_speeds():
         assert init_data["type"] == "state"
         assert init_data["current_tick"] == 0
         assert init_data["num_cars"] == 3
-        
+
         websocket.send_json({"type": "step"})
         step_data = websocket.receive_json()
         assert step_data["type"] == "state"
         assert step_data["current_tick"] == 1
+
+
+# --- Arena (skyscraper, K contestants) -------------------------------------
+
+def test_api_contestants_catalog():
+    """The Arena UI's source of truth: the dispatcher ladder, regimes, and caps."""
+    data = client.get("/api/contestants").json()
+    keys = {c["key"] for c in data["ladder"]}
+    assert {"look", "look_park", "dd_delayed", "zoned", "structural"} <= keys
+    assert set(data["regimes"]) == {"uniform", "down_peak", "up_peak", "lunch"}
+    assert data["limits"]["max_floors"] == 60 and data["limits"]["max_cars"] == 12
+
+
+def test_api_arena_batch_runs_conventional_contestants():
+    """Batch arena scores each contestant; conventional rungs need no model."""
+    resp = client.post("/api/arena", json={
+        "seed": 1000, "num_floors": 48, "num_cars": 8, "capacity": 24,
+        "arrival_rate": 0.8, "regime": "up_peak", "max_ticks": 200,
+        "contestants": [
+            {"id": "a", "dispatcher": "look_park"},
+            {"id": "b", "dispatcher": "dd_delayed"},
+        ],
+    })
+    assert resp.status_code == 200
+    out = resp.json()
+    assert out["regime"] == "up_peak"
+    by_id = {c["id"]: c for c in out["contestants"]}
+    for cid in ("a", "b"):
+        assert by_id[cid]["available"] is True
+        m = by_id[cid]["metrics"]
+        assert m["spawned"] > 0 and 0.0 <= m["completion"] <= 1.0
+    # Common Random Numbers: both contestants saw identical traffic.
+    assert by_id["a"]["metrics"]["spawned"] == by_id["b"]["metrics"]["spawned"]
+
+
+def test_api_arena_rejects_out_of_range_scale():
+    """Caps still bite at the new skyscraper envelope."""
+    resp = client.post("/api/arena", json={
+        "num_floors": 61, "num_cars": 8, "regime": "up_peak",
+        "contestants": [{"id": "a", "dispatcher": "look"}],
+    })
+    assert resp.status_code == 400
+
+
+def test_arena_websocket_init_step_is_crn_identical():
+    """Arena WS: init K contestants, step, and confirm CRN (identical spawns)."""
+    with client.websocket_connect("/api/ws/simulate") as ws:
+        ws.send_json({
+            "type": "init", "arena": True,
+            "config": {
+                "seed": 7, "num_floors": 32, "num_cars": 6, "capacity": 24,
+                "arrival_rate": 1.0, "regime": "lunch", "max_ticks": 50,
+                "contestants": [
+                    {"id": "look_park", "dispatcher": "look_park"},
+                    {"id": "zoned", "dispatcher": "zoned"},
+                ],
+            },
+        })
+        init = ws.receive_json()
+        assert init["type"] == "arena_init"
+        assert {c["id"] for c in init["contestants"]} == {"look_park", "zoned"}
+        assert all(c["available"] for c in init["contestants"])
+
+        state = None
+        for _ in range(8):
+            ws.send_json({"type": "step"})
+            state = ws.receive_json()
+            assert state["type"] == "arena_state"
+        spawns = {s["contestant_id"]: s["metrics"]["spawned"] for s in state["states"]}
+        assert len(set(spawns.values())) == 1, f"CRN desync: {spawns}"
+        # Zoned exposes zone bands; both expose per-car weight + assignment state.
+        zoned = next(s for s in state["states"] if s["contestant_id"] == "zoned")
+        assert "zones" in zoned and len(zoned["zones"]) == 6
 
 
 

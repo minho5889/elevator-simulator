@@ -1,13 +1,16 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.jsx'
+import ArenaApp from './ArenaApp.jsx'
+import { ArenaProvider } from './state/arenaStore.jsx'
 import { LanguageProvider } from './i18n.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <LanguageProvider>
-      <App />
+      <ArenaProvider>
+        <ArenaApp />
+      </ArenaProvider>
     </LanguageProvider>
   </StrictMode>,
 )

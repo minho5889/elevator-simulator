@@ -303,3 +303,31 @@ h1, h2, h3, h4, h5, h6 {
     scroll-behavior: auto !important;
   }
 }
+
+/* --- Arena additions (toy-box at skyscraper scale) ---------------------- */
+/* Display font on non-heading labels (headings already use --display via the
+   element selectors). Keeps the chunky Baloo personality across the new UI. */
+.font-display { font-family: var(--display); }
+.mono { font-family: var(--mono); }
+
+/* --- Arena motion vocabulary (echoes the existing spring/float personality;
+   the global prefers-reduced-motion block above neutralizes all of these) --- */
+@keyframes refusalFlash {
+  0%   { transform: scale(0.6); opacity: 0; }
+  40%  { transform: scale(1.12); opacity: 1; }
+  70%  { transform: translateX(2px); }
+  85%  { transform: translateX(-2px); }
+  100% { transform: scale(1); }
+}
+.tb-refused { animation: refusalFlash 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+
+@keyframes modeFlip {
+  0%   { transform: rotateX(0) scale(1); }
+  45%  { transform: rotateX(90deg) scale(1.05); }
+  55%  { transform: rotateX(-90deg) scale(1.05); }
+  100% { transform: rotateX(0) scale(1); }
+}
+.tb-mode-flip { animation: modeFlip 0.4s ease-in-out; }
+
+@keyframes gaugeWarn { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.25); } }
+.tb-gauge-warn { animation: gaugeWarn 1.4s ease-in-out infinite; }

@@ -8,7 +8,6 @@ import logging
 import random
 import asyncio
 from typing import Dict, Any, List, Optional
-from contextlib import contextmanager
 from pydantic import BaseModel, Field
 
 from fastapi import FastAPI, HTTPException, status, WebSocket, WebSocketDisconnect
@@ -30,6 +29,15 @@ from elevatorsim.policy.heuristic import HeuristicDispatcher, GroupHeuristicDisp
 from elevatorsim.policy.agentic import DispatcherAgent  # noqa: E402
 from elevatorsim.config import seed_rng, get_gemini_api_key, get_llm_provider  # noqa: E402
 from elevatorsim.core.events import Event  # noqa: E402
+from elevatorsim.web.serialize import serialize_event  # noqa: E402
+from elevatorsim.web.arena_ws import handle_arena_session  # noqa: E402
+from elevatorsim.arena.registry import (  # noqa: E402
+    CONTESTANT_LADDER,
+    CONTESTANT_META,
+    REGIMES,
+    structural_available,
+)
+from elevatorsim.arena.run import run_one  # noqa: E402
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -56,8 +64,8 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 
 class SimulationRequest(BaseModel):
     seed: int = Field(default=42, description="RNG Seed for reproducibility")
-    num_floors: int = Field(default=5, description="Number of floors (5-10)")
-    num_cars: int = Field(default=1, description="Number of elevator cars (1-6)")
+    num_floors: int = Field(default=5, description="Number of floors (2-60)")
+    num_cars: int = Field(default=1, description="Number of elevator cars (1-12)")
     car_speeds: Optional[List[float]] = Field(default=None, description="Optional custom car speeds (length must equal num_cars)")
     max_weight_kg: Optional[float] = Field(default=300.0, description="Cab weight limit in kg; null disables the limit")
     arrival_rate: float = Field(default=0.2, description="Arrival rate probability (0.0 to 1.0)")
@@ -76,25 +84,38 @@ class KeyCheckRequest(BaseModel):
 
 
 
-def serialize_event(event: Event) -> Dict[str, Any]:
-    """Serialize a simulation event object into a JSON-compatible dictionary."""
-    data = {
-        "event_type": event.__class__.__name__,
-        "message": str(event),
-        "time": event.time
-    }
-    for k, v in event.__dict__.items():
-        if not k.startswith("_"):
-            data[k] = v
-    return data
+# Scale envelope shared by /api/simulate, /api/arena, and the WS init paths.
+MAX_FLOORS = 60
+MAX_CARS = 12
+MAX_CAPACITY = 64
+
+
+def validate_scale(num_floors: int, num_cars: int, capacity: int = 8) -> None:
+    """Raise HTTP 400 if the requested building geometry is out of range."""
+    if num_floors < 2 or num_floors > MAX_FLOORS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Number of floors must be between 2 and {MAX_FLOORS}.")
+    if num_cars < 1 or num_cars > MAX_CARS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Number of cars must be between 1 and {MAX_CARS}.")
+    if capacity < 1 or capacity > MAX_CAPACITY:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Per-car capacity must be between 1 and {MAX_CAPACITY}.")
 
 
 def _build_car_bank(num_cars: int, car_speeds: Optional[List[float]] = None,
-                    max_weight_kg: Optional[float] = None) -> List[Car]:
+                    max_weight_kg: Optional[float] = None,
+                    capacity: int = 8) -> List[Car]:
     """Create a bank of elevator cars starting at floor 0."""
-    if car_speeds is not None and len(car_speeds) == num_cars:
-        return [Car(car_id=f"C{i+1}", initial_floor=0, speed=car_speeds[i], max_weight_kg=max_weight_kg) for i in range(num_cars)]
-    return [Car(car_id=f"C{i+1}", initial_floor=0, max_weight_kg=max_weight_kg) for i in range(num_cars)]
+    speeds = car_speeds if (car_speeds is not None and len(car_speeds) == num_cars) else None
+    return [
+        Car(
+            car_id=f"C{i+1}", initial_floor=0, capacity=capacity,
+            speed=speeds[i] if speeds is not None else 1.0,
+            max_weight_kg=max_weight_kg,
+        )
+        for i in range(num_cars)
+    ]
 
 
 def _make_simulation(
@@ -174,18 +195,9 @@ def run_simulation(req: SimulationRequest):
     """Run Heuristic and Agentic simulations for the given parameters."""
     logger.info(f"Received simulation request: profile={req.profile}, seed={req.seed}, ticks={req.max_ticks}, cars={req.num_cars}")
     
-    if req.num_floors < 2 or req.num_floors > 10:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Number of floors must be between 2 and 10."
-        )
+    validate_scale(req.num_floors, req.num_cars)
 
-    if req.num_cars < 1 or req.num_cars > 6:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Number of cars must be between 1 and 6."
-        )
-        
+
     # 1. Run LOOK Heuristic (always runs instantly)
     try:
         # Use group dispatcher for multi-car, legacy for single-car
@@ -296,6 +308,81 @@ def get_presets():
     return presets
 
 
+class ArenaContestant(BaseModel):
+    id: str = Field(..., description="Stable client id for this contestant lane")
+    dispatcher: str = Field(..., description="Ladder key, e.g. 'look_park', 'dd_delayed', 'structural'")
+    ollama_model_id: Optional[str] = Field(default=None, description="Model for structural/agentic contestants")
+
+
+class ArenaRequest(BaseModel):
+    seed: int = 1000
+    num_floors: int = Field(default=24, description=f"2-{MAX_FLOORS}")
+    num_cars: int = Field(default=6, description=f"1-{MAX_CARS}")
+    capacity: int = Field(default=24, description=f"1-{MAX_CAPACITY}")
+    max_weight_kg: Optional[float] = 1600.0
+    arrival_rate: float = 0.8
+    regime: str = Field(default="up_peak", description="uniform|down_peak|up_peak|lunch")
+    max_ticks: int = 600
+    stop_ticks: int = 9
+    transfer_ticks: int = 1
+    min_epoch_ticks: int = 120
+    contestants: List[ArenaContestant]
+
+
+@app.get("/api/contestants")
+def get_contestants():
+    """Expose the dispatcher ladder, regimes, and scale limits to the Arena UI."""
+    return {
+        "ladder": [{"key": k, **CONTESTANT_META.get(k, {})} for k in CONTESTANT_LADDER],
+        "regimes": list(REGIMES.keys()),
+        "limits": {"max_floors": MAX_FLOORS, "max_cars": MAX_CARS, "max_capacity": MAX_CAPACITY},
+    }
+
+
+@app.post("/api/arena")
+def run_arena(req: ArenaRequest):
+    """Headless batch race: score each contestant and return its metrics panel.
+
+    CRN holds via run_one's per-seed reseed. The live, tick-streamed arena is the
+    WebSocket path (init with arena=true); this endpoint backs leaderboards and
+    preset baking."""
+    if req.regime not in REGIMES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Unknown regime: {req.regime!r} (known: {', '.join(REGIMES)})")
+    validate_scale(req.num_floors, req.num_cars, req.capacity)
+
+    model_bases = ("structural", "agentic", "agent", "gemini", "gemma")
+    results: List[Dict[str, Any]] = []
+    for c in req.contestants:
+        base = c.dispatcher.split(":", 1)[0]
+        if base in model_bases:
+            ok, reason = structural_available(c.ollama_model_id)
+            if not ok:
+                results.append({"id": c.id, "dispatcher": c.dispatcher,
+                                "available": False, "unavailable_reason": reason, "metrics": None})
+                continue
+        try:
+            name = c.dispatcher
+            if base == "structural" and c.ollama_model_id and ":" not in c.dispatcher:
+                name = f"structural:{c.ollama_model_id}"
+            metrics = run_one(
+                name, req.regime, req.seed,
+                floors=req.num_floors, cars=req.num_cars, capacity=req.capacity,
+                weight_limit=req.max_weight_kg, arrival_rate=req.arrival_rate,
+                ticks=req.max_ticks, stop_ticks=req.stop_ticks, transfer_ticks=req.transfer_ticks,
+            )
+            results.append({"id": c.id, "dispatcher": c.dispatcher,
+                            "available": True, "unavailable_reason": None, "metrics": metrics})
+        except Exception as e:  # noqa: BLE001 - report per contestant, don't 500 the race
+            logger.error(f"Arena contestant {c.id} failed: {e}")
+            results.append({"id": c.id, "dispatcher": c.dispatcher,
+                            "available": False, "unavailable_reason": str(e), "metrics": None})
+
+    return {"regime": req.regime,
+            "config": req.model_dump(exclude={"contestants"}),
+            "contestants": results}
+
+
 @app.websocket("/api/ws/simulate")
 async def websocket_simulate(websocket: WebSocket):
     await websocket.accept()
@@ -338,6 +425,11 @@ async def websocket_simulate(websocket: WebSocket):
             msg_type = message.get("type")
             
             if msg_type == "init":
+                # Arena mode (K contestants + a regime) is an additive branch; the
+                # arena handler owns the rest of this socket's lifecycle.
+                if message.get("arena"):
+                    await handle_arena_session(websocket, message)
+                    return
                 config = message.get("config", {})
                 seed = config.get("seed", 42)
                 num_floors = config.get("num_floors", 5)
