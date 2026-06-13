@@ -1,7 +1,6 @@
 # WO-002: Stage-2 oracle label driver
 Branch: laneb/wo-002
-Status: READY — all prerequisites cleared (WO-001 merged; calibration locked;
-        `switching` warmup reconstruct handler landed)
+Status: HANDBACK
 
 ## Goal
 Implement `scripts/label.py`: stream WO-001 descriptors, reconstruct each state
@@ -35,3 +34,12 @@ while the traffic summary alone decides the mode at 1.65s/100%-valid.
 ## Gate tests (Lane A authors when unblocked)
 - Records validate against `StructuralPlan`; `input_view` round-trips the tools;
   labeling is deterministic; the global RNG is unperturbed across the run.
+
+## Writer handback
+- **Implementation**: Created `scripts/label.py` implementing `label_descriptor(d: Dict[str, Any])` and `label_descriptors(descriptors: List[Dict[str, Any]])` to batch-process descriptors.
+- **Serialization**: `input_view` serializes only the `get_traffic_summary` of the reconstructed state via `set_active_simulation`/`clear_active_simulation`, excluding raw queues or floor states. Keys are sorted deterministically using `sort_keys=True`.
+- **RNG Safety**: Saves and restores the global `config.RNG` state before and after each labeling run to guarantee zero perturbation.
+- **Verification**: Created a temporary check script `test_label_script.py` in the scratch directory. Verified that the output records successfully validate against the Pydantic `StructuralPlan` schema, the input view correctly round-trips, and the global RNG is unperturbed. Ran the end-to-end flow with `harvest.py --target 20` and `label.py`, producing 20 valid labeled records in `data/stage2_labels.jsonl`.
+
+## Audit findings
+<filled by Claude>
