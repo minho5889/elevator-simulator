@@ -3,7 +3,7 @@
 /**
  * Reconstruct simulation state at a specific tick (supports multi-car)
  */
-export function reconstructState(events, tick, numCars = 1) {
+export function reconstructState(events, tick, numFloors = 10, numCars = 1) {
   const state = {
     cars: {},  // keyed by car_id (e.g. "C1", "C2")
     floorQueues: {},
@@ -21,8 +21,9 @@ export function reconstructState(events, tick, numCars = 1) {
     };
   }
 
-  // Initialize floor queues
-  for (let i = 0; i < 10; i++) {
+  // Initialize floor queues for the ACTUAL building height (skyscrapers go to
+  // 60 floors; the old fixed 10 dropped arrivals above floor 9).
+  for (let i = 0; i < Math.max(numFloors, 1); i++) {
     state.floorQueues[i] = [];
   }
 
@@ -59,7 +60,7 @@ export function reconstructState(events, tick, numCars = 1) {
     switch (ev.event_type) {
       case "PassengerSpawned": {
         const { passenger_id, source, target } = ev;
-        state.floorQueues[source].push({ id: passenger_id, target, weight: passengerWeights[passenger_id] });
+        (state.floorQueues[source] ??= []).push({ id: passenger_id, target, weight: passengerWeights[passenger_id] });
         break;
       }
       case "PassengerBoarded": {

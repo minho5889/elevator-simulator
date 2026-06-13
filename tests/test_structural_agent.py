@@ -93,17 +93,21 @@ def test_provider_commits_then_reuses_last_good_plan():
 
 def test_dispatcher_wiring_drives_a_full_episode():
     """A provider-backed StructuralDispatcher runs a full episode and delivers."""
-    spec = importlib.util.spec_from_file_location("arena_sa", _ROOT / "scripts" / "arena.py")
-    arena = importlib.util.module_from_spec(spec)
-    sys.modules["arena_sa"] = arena
-    spec.loader.exec_module(arena)
-    base = arena._make_dispatcher
-    arena._make_dispatcher = lambda n: (
+    # The arena engine now lives in the importable package; patch the canonical
+    # dispatcher factory (registry._make_dispatcher) to inject a fixed-plan policy.
+    from elevatorsim.arena import registry
+    from elevatorsim.arena.run import run_one
+
+    base = registry._make_dispatcher
+    registry._make_dispatcher = lambda n: (
         StructuralDispatcher(_Fixed(StructuralPlan(mode="zoned", hold="balanced")), min_epoch_ticks=300)
         if n == "_fixed" else base(n)
     )
-    r = arena.run_one("_fixed", "lunch", 7, floors=32, cars=8, capacity=24,
-                      arrival_rate=2.0, ticks=900, stop_ticks=9, transfer_ticks=1)
+    try:
+        r = run_one("_fixed", "lunch", 7, floors=32, cars=8, capacity=24,
+                    arrival_rate=2.0, ticks=900, stop_ticks=9, transfer_ticks=1)
+    finally:
+        registry._make_dispatcher = base
     assert r["delivered"] > 0 and r["completion"] > 0.3
 
 
