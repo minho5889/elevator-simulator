@@ -1,7 +1,11 @@
 # WO-003: Stage-3 dataset assembly
 Branch: laneb/wo-003
-Status: AUDIT-FAIL — assemble.py accepted; tests/ violation fixed; train.py +
-        Modelfile (Gemma-2-vs-4) flagged unsafe, must be redone at Stage 4/5
+Status: RESOLVED (2026-06-13) — assemble.py accepted; tests/ violation fixed; and
+        the audit-flagged Stage-4/5 defects are now DONE: scripts/train.py defaults
+        to google/gemma-4-E4B-it (apply_chat_template + <turn|> EOS pin +
+        text-tower-only LoRA), the Modelfile inherits RENDERER/PARSER gemma4 (no
+        hand-rolled template), and the render-identity gate is rebuilt and
+        failing-capable. (Historical AUDIT-FAIL narrative below kept as the record.)
 
 ## Goal
 Implement `scripts/assemble.py`: turn WO-002 labeled records into trainer-ready
@@ -118,9 +122,22 @@ FAIL — everything around it:
    serving it as gemma4-based `elevator-gemma` is total train != prod. Flagged
    loudly in both files (NOT silently "fixed" — the correct gemma4 HF id needs
    the operator's knowledge of what `gemma4:e4b` maps to).
+   **RESOLVED (2026-06-13):** `gemma4:e4b` was fingerprinted to
+   `google/gemma-4-E4B-it`; `scripts/train.py` now defaults to it, formats via
+   `tokenizer.apply_chat_template` (the official Gemma-4 `<|turn>…<turn|>` scheme,
+   `add_special_tokens=False`), pins `tokenizer.eos_token="<turn|>"` (Unsloth
+   #5386), and scopes LoRA to `language_model.*` (text-tower-only). No gemma-2 left.
 3. **Unverified Modelfile.** The base `gemma4:e4b` template is `{{ .Prompt }}`,
    so the custom turn-marker TEMPLATE imposes a different render than the
    G5-validated inference used; unverified vs gemma4's official template. Flagged.
+   **RESOLVED (2026-06-13):** the Modelfile no longer hand-rolls a turn template —
+   it keeps the passthrough `TEMPLATE {{ .Prompt }}` and inherits Ollama's built-in
+   `RENDERER gemma4` + `PARSER gemma4` (the SAME official template the trainer's
+   `apply_chat_template` applies), with `temperature 0`, `num_ctx 4096`, and no
+   `stop` param (the gemma4 parser ends the turn on `<turn|>`). The render-identity
+   gate is `tests/test_structural_agent.py::test_chat_template_render_identity`
+   (offline, failing-capable) + `test_chat_template_token_identity_online` (run with
+   `GEMMA4_RENDER_IDENTITY_STRICT=1` in the Stage-4 env).
 4. **Process violations.** Committed directly to `main` (not a `laneb/wo-003`
    branch); did out-of-scope Lane-A (Modelfile, the test) and Stage-4 (train.py)
    work; `Co-Authored-By: Antigravity` instead of the prescribed trailer.
@@ -130,3 +147,11 @@ Modelfile and train.py as unverified/wrong-base. Out-of-scope artifacts left in
 place (already pushed; not rewriting history) but marked unsafe-as-is. The
 `assemble.py` deliverable is accepted; Stage 4/5 (train.py, Modelfile) must be
 redone against the correct gemma4 base with the render-identity gate enforced.
+
+**Closed out (2026-06-13).** That redo has landed (see §2/§3 RESOLVED notes and the
+Status line): `scripts/train.py`, the `Modelfile`, and the render-identity gate in
+`tests/test_structural_agent.py` are now the source of truth — built against the
+fingerprinted `google/gemma-4-E4B-it` base and the Gemma-4 `<|turn>…<turn|>` scheme.
+The honest-skip gate from §1 was upgraded to do real, failing-capable work offline
+(`test_chat_template_render_identity`), with the token-identity check moved to the
+online `test_chat_template_token_identity_online`.

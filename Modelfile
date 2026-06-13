@@ -1,31 +1,50 @@
-# Modelfile for the Gemma 4 e4b Elevator Dispatcher
-# Reference: docs/training-plan.md Stage 5
+# Modelfile — fine-tuned Gemma 4 E4B elevator dispatcher (`elevator-gemma`).
+# Reference: docs/training-plan.md Stage 5; pre-GPU train==prod checklist.
 #
-# ⚠️ UNVERIFIED — do NOT `ollama create` from this before Stage-4 verification.
-# Lane-A audit (2026-06-13): the base `gemma4:e4b` template is `{{ .Prompt }}`
-# (`ollama show gemma4:e4b --template`), so the custom TEMPLATE below imposes a
-# DIFFERENT render than the G5-validated inference used. It was hand-written in
-# Gemma-2 style and is NOT verified against gemma4's official chat_template or the
-# LoRA trainer's. Before any GPU run, confirm this TEMPLATE renders the anchor
-# messages byte-identically to the trainer's apply_chat_template for the EXACT
-# gemma4 base (the render-identity gate, training-plan Stage 5).
+# WHY THERE IS NO HAND-ROLLED TEMPLATE (the train==prod render-identity decision):
+# The served base `gemma4:e4b` is google/gemma-4-E4B-it (Q4_K_M; fingerprint- and
+# digest-confirmed). Ollama renders it with its BUILT-IN `gemma4` renderer, and the
+# base Modelfile's TEMPLATE is the passthrough `{{ .Prompt }}` — the Go renderer,
+# not a template string, does all chat formatting.
+#
+# Gemma 4 also CHANGED its turn delimiters. It does NOT use Gemma-2/3's
+# `<start_of_turn>` / `<end_of_turn>` — those strings are NOT tokens in the Gemma-4
+# vocab. The real scheme is `<|turn>ROLE\n … <turn|>\n`, turn-ending EOS = `<turn|>`
+# (token id 106). A hand-written Go TEMPLATE with the old phantom markers tokenizes
+# as raw text and produces broken output (the documented `---`-on-repeat failure of
+# mis-templated community Gemma-4 GGUFs).
+#
+# Therefore the fine-tuned model inherits the SAME formatting path as the validated
+# base: passthrough TEMPLATE + `RENDERER gemma4` + `PARSER gemma4`. The LoRA trainer
+# formats with the model's own `tokenizer.apply_chat_template` (the official Gemma-4
+# template) — so train render == serve render by construction. The render-identity
+# gate (tests/test_structural_agent.py::test_chat_template_render_identity) enforces
+# this: it fails if this Modelfile reintroduces a divergent template.
+#
+# Stage-5 build: convert the merged adapter to Q4_K_M GGUF (llama.cpp
+# convert_hf_to_gguf.py), then `ollama create elevator-gemma -f Modelfile`. Point
+# FROM at that converted GGUF. The full HF-tokenizer-vs-Ollama token-identity check
+# runs in the Stage-4 training env (it needs transformers + the exact base
+# tokenizer); the offline structural half of the gate runs everywhere.
 
-FROM gemma4:e4b
+FROM ./elevator-gemma.Q4_K_M.gguf
 
-# System parameters for deterministic structural mode selection
-PARAMETER temperature 0.0
-PARAMETER top_p 0.0
+# Passthrough template — the gemma4 renderer owns chat formatting (see header).
+# Do NOT replace this with a `<start_of_turn>`/`<|turn>` template.
+TEMPLATE {{ .Prompt }}
+RENDERER gemma4
+PARSER gemma4
+
+# Deterministic structured decode — matches the inference path's
+# options={"temperature": 0} in policy/structural_agent.py (LLMStructuralProvider).
+PARAMETER temperature 0
+
+# num_ctx >= the longest assembled SFT sample. Measured max is ~200 tokens
+# (compact get_traffic_summary input + bare {mode,hold} target); 4096 is ample.
 PARAMETER num_ctx 4096
-PARAMETER stop "<end_of_turn>"
-PARAMETER stop "<eos>"
 
-# Official Gemma chat template template syntax matching the HF tokenizer format
-TEMPLATE """{{ if .System }}<start_of_turn>user
-{{ .System }}
-
-{{ .Prompt }}<end_of_turn>
-{{ else }}<start_of_turn>user
-{{ .Prompt }}<end_of_turn>
-{{ end }}<start_of_turn>model
-{{ .Response }}<end_of_turn>
-"""
+# Stopping is owned by `PARSER gemma4`, which ends the turn on `<turn|>` (id 106) —
+# exactly the EOS the trainer pins (Unsloth #5386). We deliberately set NO `stop`
+# param: a literal "<end_of_turn>" would be a Gemma-2 PHANTOM (absent from the
+# Gemma-4 vocab) and re-declaring "<turn|>" is redundant with the parser. This
+# mirrors the base gemma4:e4b Modelfile, which sets no stop tokens either.
