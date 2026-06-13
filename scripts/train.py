@@ -4,6 +4,14 @@
 
 Supports fast training using Unsloth if available, or falls back to standard
 Hugging Face PEFT / TRL for maximum portability on any cloud GPU.
+
+⚠️ WRONG BASE MODEL — Lane-A audit (2026-06-13). The default `--model-id` below is
+`google/gemma-2-2b-it` (Gemma 2), but this entire project targets the served
+`gemma4:e4b` (Gemma 4). Fine-tuning Gemma 2 and serving it as a gemma4-based
+`elevator-gemma` is total train != prod. Before any GPU run, set `--model-id` to
+the EXACT HuggingFace source of the Ollama `gemma4:e4b` model, and the trainer's
+chat_template MUST match the served Modelfile (the render-identity gate). This
+script is an unverified scaffold authored out of WO-003 scope.
 """
 
 import os
@@ -13,7 +21,8 @@ from datasets import load_dataset
 import torch
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Fine-tune Gemma-2 on assembled SFT dataset using LoRA.")
+    parser = argparse.ArgumentParser(description="Fine-tune the gemma4:e4b base on the assembled SFT dataset using LoRA.")
+    # ⚠️ default is WRONG (Gemma 2) — must be set to the gemma4:e4b HF source. See module docstring.
     parser.add_argument("--model-id", type=str, default="google/gemma-2-2b-it", help="HF base model ID to fine-tune.")
     parser.add_argument("--train-data", type=str, default="data/sft_train.jsonl", help="Path to training JSONL.")
     parser.add_argument("--eval-data", type=str, default="data/sft_heldout.jsonl", help="Path to evaluation/heldout JSONL.")

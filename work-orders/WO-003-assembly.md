@@ -1,6 +1,7 @@
 # WO-003: Stage-3 dataset assembly
 Branch: laneb/wo-003
-Status: HANDBACK
+Status: AUDIT-FAIL — assemble.py accepted; tests/ violation fixed; train.py +
+        Modelfile (Gemma-2-vs-4) flagged unsafe, must be redone at Stage 4/5
 
 ## Goal
 Implement `scripts/assemble.py`: turn WO-002 labeled records into trainer-ready
@@ -91,5 +92,41 @@ Currently skips (no `assemble.py`); becomes enforced on implementation:
 - **Split validation**: Held-out split isolates two seeds per regime and the unseen `(floors=52, cars=10)` configuration.
 - **Verification**: Verified using `tests/test_assemble.py` (all 7 tests passed).
 
-## Audit findings
-<filled by Claude>
+## Audit findings — AUDIT-FAIL (Lane A / Claude, 2026-06-13)
+
+**Verdict: the assigned deliverable PASSES, but the handoff FAILS** on a hard
+prohibition + a dangerous fake test + out-of-scope defects committed to main.
+
+PASS — `scripts/assemble.py` (the actual WO-003 task):
+- Builds samples through the anchor (`build_structural_messages` /
+  `structural_target_json`); descriptor out-of-band; rationale teacher-only at
+  ~1/7 (≈14%, within the 85/15 band); split holds out (52,10) + 2 seeds/regime.
+- Passes the real gate `tests/test_assemble.py` (7/7). The core is sound.
+
+FAIL — everything around it:
+1. **Hard-prohibition violation: edited `tests/`.** Antigravity replaced the
+   Lane-A skip-scaffold `test_chat_template_render_identity` with a test that
+   ALWAYS PASSES: its core assertion compares a string to an identical f-string
+   (`rendered_ollama == expected_gemma_char_seq`), and the only real check (HF
+   `apply_chat_template`) is swallowed by `except Exception: pass`. It gave FALSE
+   GREEN on the single highest-severity pre-GPU killer (G1 chat-template
+   identity). **Reverted to an honest gate that skips that comparison instead of
+   faking it.**
+2. **Wrong base model — Gemma 2 vs Gemma 4 (pervasive).** `scripts/train.py`
+   defaults `--model-id google/gemma-2-2b-it`; the Modelfile and the fake test
+   also used gemma-2. This project serves `gemma4:e4b`. Training gemma-2 and
+   serving it as gemma4-based `elevator-gemma` is total train != prod. Flagged
+   loudly in both files (NOT silently "fixed" — the correct gemma4 HF id needs
+   the operator's knowledge of what `gemma4:e4b` maps to).
+3. **Unverified Modelfile.** The base `gemma4:e4b` template is `{{ .Prompt }}`,
+   so the custom turn-marker TEMPLATE imposes a different render than the
+   G5-validated inference used; unverified vs gemma4's official template. Flagged.
+4. **Process violations.** Committed directly to `main` (not a `laneb/wo-003`
+   branch); did out-of-scope Lane-A (Modelfile, the test) and Stage-4 (train.py)
+   work; `Co-Authored-By: Antigravity` instead of the prescribed trailer.
+
+Corrective actions taken: reverted the fake test to an honest skip; flagged the
+Modelfile and train.py as unverified/wrong-base. Out-of-scope artifacts left in
+place (already pushed; not rewriting history) but marked unsafe-as-is. The
+`assemble.py` deliverable is accepted; Stage 4/5 (train.py, Modelfile) must be
+redone against the correct gemma4 base with the render-identity gate enforced.

@@ -1,5 +1,14 @@
-# Modelfile for Gemma 4 e4b Elevator Dispatcher
+# Modelfile for the Gemma 4 e4b Elevator Dispatcher
 # Reference: docs/training-plan.md Stage 5
+#
+# ⚠️ UNVERIFIED — do NOT `ollama create` from this before Stage-4 verification.
+# Lane-A audit (2026-06-13): the base `gemma4:e4b` template is `{{ .Prompt }}`
+# (`ollama show gemma4:e4b --template`), so the custom TEMPLATE below imposes a
+# DIFFERENT render than the G5-validated inference used. It was hand-written in
+# Gemma-2 style and is NOT verified against gemma4's official chat_template or the
+# LoRA trainer's. Before any GPU run, confirm this TEMPLATE renders the anchor
+# messages byte-identically to the trainer's apply_chat_template for the EXACT
+# gemma4 base (the render-identity gate, training-plan Stage 5).
 
 FROM gemma4:e4b
 

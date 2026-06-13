@@ -148,54 +148,39 @@ def test_inference_builds_prompt_through_the_anchor():
 
 
 def test_chat_template_render_identity():
-    """Pre-GPU gate [format-fidelity audit G1/G2]: the LoRA trainer's chat_template
-    and the served GGUF Modelfile template MUST render the anchor messages to the
-    same character sequence, ensuring train == prod.
+    """Pre-GPU gate [format-fidelity audit G1/G2]: the served Modelfile template
+    and the LoRA trainer's chat_template must render the anchor messages to the
+    same token sequence, or the fine-tune is train != prod.
+
+    HONESTY CONTRACT (this replaced a self-comparing version that always passed —
+    see the WO-003 audit): this test must NEVER fake-pass. It does the real
+    checks it can OFFLINE — Modelfile structural sanity, which CAN fail — and then
+    SKIPS the full token-identity comparison explicitly, because that requires the
+    EXACT base model's HF tokenizer (gemma4:e4b, NOT gemma-2) and the trainer's
+    chat_template, which only exist in the Stage-4 training env. Do not swallow,
+    do not self-compare. See docs/training-plan.md Stage 5 'Pre-GPU checklist'.
     """
-    modelfile_path = Path(__file__).resolve().parents[1] / "Modelfile"
-    assert modelfile_path.exists()
-    
-    template_str = None
-    with open(modelfile_path, "r", encoding="utf-8") as f:
-        content = f.read()
-        import re
-        match = re.search(r'TEMPLATE\s+"""(.*?)"""', content, re.DOTALL)
-        if match:
-            template_str = match.group(1).strip()
-            
-    assert template_str is not None, "Could not find TEMPLATE in Modelfile"
-    
-    # Render Ollama template with system and prompt turns
-    user_prompt = STRUCTURAL_USER_TEMPLATE.format(input_view='{"frac_origin_lobby": 1.0}')
-    rendered_ollama = (
-        f"<start_of_turn>user\n{STRUCTURAL_SYSTEM_PROMPT}\n\n{user_prompt}<end_of_turn>\n"
-        f"<start_of_turn>model\n"
+    import re
+    modelfile = Path(__file__).resolve().parents[1] / "Modelfile"
+    if not modelfile.exists():
+        pytest.skip("Modelfile not committed yet (Stage 5)")
+    m = re.search(r'TEMPLATE\s+"""(.*?)"""', modelfile.read_text(), re.DOTALL)
+    assert m, "Modelfile has no TEMPLATE block"
+    tmpl = m.group(1)
+
+    # Real structural sanity — CAN FAIL. Gemma folds the system into the user
+    # turn (it has no native system turn); the template must use Gemma turn
+    # markers and reference both fields.
+    assert "<start_of_turn>user" in tmpl and "<start_of_turn>model" in tmpl
+    assert "<start_of_turn>system" not in tmpl, "Gemma has no system turn"
+    assert "{{ .System }}" in tmpl and "{{ .Prompt }}" in tmpl
+
+    # The full train==prod token-identity check (Modelfile render == the trainer's
+    # tokenizer.apply_chat_template for the EXACT gemma4 base) cannot run offline.
+    pytest.skip(
+        "token-identity vs the gemma4:e4b base chat_template runs at Stage 4 in the "
+        "training env (needs transformers + the exact base tokenizer, not gemma-2)"
     )
-    
-    # Official Gemma 2 chat template formatting Turn 1 (system + user combined)
-    expected_gemma_char_seq = (
-        f"<start_of_turn>user\n{STRUCTURAL_SYSTEM_PROMPT}\n\n{user_prompt}<end_of_turn>\n"
-        f"<start_of_turn>model\n"
-    )
-    
-    assert rendered_ollama.strip() == expected_gemma_char_seq.strip()
-    
-    # Attempt to load Hugging Face tokenizer if transformers is available to verify token-level match
-    try:
-        from transformers import AutoTokenizer
-        # Use gemma-2-2b-it or gemma-2-9b-it tokenizer
-        tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-2b-it")
-        sample_messages = [
-            {"role": "system", "content": STRUCTURAL_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
-        ]
-        hf_prompt = tokenizer.apply_chat_template(sample_messages, tokenize=False, add_generation_prompt=True)
-        if hf_prompt.startswith("<bos>"):
-            hf_prompt = hf_prompt[len("<bos>"):]
-        assert hf_prompt.strip() == rendered_ollama.strip()
-    except Exception:
-        # Tokenizer check skipped if offline or not cached
-        pass
 
 
 def _ollama_ready() -> bool:
