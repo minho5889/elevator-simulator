@@ -39,7 +39,9 @@ from elevatorsim.core.simulation import Simulation
 from elevatorsim.core.traffic import TrafficGenerator
 from elevatorsim.policy.baselines import MainTerminalParkingLook
 from elevatorsim.policy.schemas import StructuralPlan
-from elevatorsim.policy.structural import ALL_PLANS, plan_to_dispatcher, reset_assignment_state
+from elevatorsim.policy.structural import (
+    ALL_PLANS, StructuralDispatcher, plan_to_dispatcher, reset_assignment_state,
+)
 from elevatorsim.config import seed_rng
 
 REGIME_PROFILE = {
@@ -200,6 +202,34 @@ def label_decision(
     return best_plan, [r[5] for r in scored]
 
 
+# Deterministic mode-cycling order for the "switching" warmup policy. No RNG —
+# the only stochasticity in a harvested state is the (seeded) traffic, so two
+# reconstructions of the same descriptor are byte-identical.
+_SWITCH_CYCLE = ("conventional", "dd_delayed", "zoned")
+
+
+def _build_warmup_dispatcher(warmup: str):
+    """Build the policy that runs before the harvested decision point.
+
+    A single StructuralPlan mode maps to its concrete dispatcher; the
+    ``"switching"`` sentinel (WO-001) rotates conventional -> dd_delayed ->
+    zoned every epoch via ``StructuralDispatcher``, so the harvest corpus covers
+    the mixed-mode states a real adaptive policy produces, not just single-mode
+    backlogs (the warmup-bias finding from the freeze).
+    """
+    if warmup == "switching":
+        counter = {"i": 0}
+
+        def provider(_sim):
+            plan = StructuralPlan(
+                mode=_SWITCH_CYCLE[counter["i"] % len(_SWITCH_CYCLE)], hold="balanced")
+            counter["i"] += 1
+            return plan
+
+        return StructuralDispatcher(provider, min_epoch_ticks=150)
+    return plan_to_dispatcher(StructuralPlan(mode=warmup, hold="balanced"))
+
+
 def harvest_state(
     regime: str,
     seed: int,
@@ -217,11 +247,14 @@ def harvest_state(
     """Run a warmup policy to ``harvest_tick`` and return the live mid-episode sim.
 
     A decision point: the state a structural policy would face at an epoch
-    boundary. ``warmup`` is the mode running before the decision (defaults to
-    conventional — a neutral prior); it must be a single StructuralPlan mode.
-    ``weight_limit`` (kg) applies a per-car cap for refusal-curriculum cells.
-    Reseeds the global RNG, so the returned sim's future is reproducible for the
-    oracle (the CRN snapshot is taken inside ``label_decision``).
+    boundary. ``warmup`` is the policy running before the decision (defaults to
+    conventional — a neutral prior): a single StructuralPlan mode, or the
+    ``"switching"`` sentinel (a deterministic mode-cycling policy — see
+    ``_build_warmup_dispatcher``) that produces the mixed-mode backlogs an
+    adaptive policy actually faces [WO-001 Stage-1 warmup sweep]. ``weight_limit``
+    (kg) applies a per-car cap for refusal-curriculum cells. Reseeds the global
+    RNG, so the returned sim's future is reproducible for the oracle (the CRN
+    snapshot is taken inside ``label_decision``).
     """
     seed_rng(seed)
     building = Building(num_floors=floors)
@@ -229,9 +262,8 @@ def harvest_state(
         Car(f"C{i + 1}", 0, capacity=capacity, max_weight_kg=weight_limit)
         for i in range(cars)
     ]
-    warmup_plan = StructuralPlan(mode=warmup, hold="balanced")
     sim = Simulation(
-        building, cars_list[0], plan_to_dispatcher(warmup_plan), MetricsCollector(),
+        building, cars_list[0], _build_warmup_dispatcher(warmup), MetricsCollector(),
         traffic_generator=TrafficGenerator(floors, arrival_rate, REGIME_PROFILE[regime]),
         verbose=False, extra_cars=cars_list[1:],
         stop_ticks=stop_ticks, transfer_ticks=transfer_ticks,

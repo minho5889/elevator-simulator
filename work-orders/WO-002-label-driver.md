@@ -1,6 +1,7 @@
 # WO-002: Stage-2 oracle label driver
 Branch: laneb/wo-002
-Status: BLOCKED (on WO-001 output format only — calibration is now LOCKED)
+Status: READY — all prerequisites cleared (WO-001 merged; calibration locked;
+        `switching` warmup reconstruct handler landed)
 
 ## Goal
 Implement `scripts/label.py`: stream WO-001 descriptors, reconstruct each state
@@ -14,10 +15,13 @@ is the serialized **`get_traffic_summary`** of the reconstructed state ONLY —
 the full call dump (~17 KB) overflows `gemma4:e4b` context and truncates output,
 while the traffic summary alone decides the mode at 1.65s/100%-valid.
 
-## Blocked until
-WO-001 lands (descriptor JSONL format final). The cost calibration is DONE —
-`oracle.DEFAULT_WEIGHTS/HORIZON/SETTLE` are locked and validated
-(`scripts/calibrate.py`); pass NO overrides, just `label_decision(sim)`.
+## Prerequisites (all cleared 2026-06-13)
+- WO-001 merged: `scripts/harvest.py` emits descriptors; format final.
+- Cost calibration locked + validated: `oracle.DEFAULT_WEIGHTS/HORIZON/SETTLE`
+  (`scripts/calibrate.py`). Pass NO overrides — just `label_decision(sim)`.
+- `switching` warmup is reconstructable: `oracle.harvest_state(**descriptor)`
+  now handles every warmup value, so `harvest_state(**{k:v for k,v in d.items()
+  if k in HARVEST_KEYS})` works for ALL descriptors (verified end-to-end).
 
 ## Files you may create/modify (when unblocked)
 - `scripts/label.py` (new)

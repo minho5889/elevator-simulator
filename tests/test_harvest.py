@@ -97,13 +97,13 @@ def test_does_not_perturb_global_rng():
 
 
 def test_descriptors_reconstruct_via_oracle_harvest_state():
-    """Each single-mode descriptor's harvest-keys reconstruct a real state.
-
-    The 'switching' warmup is a Stage-2-interpreted sentinel (not a single mode),
-    so it is excluded from the direct-reconstruct check per WO-001.
-    """
-    singles = [d for d in _descriptors(400, 5) if d["warmup"] != "switching"]
-    for d in singles[:25]:
+    """Every descriptor's harvest-keys reconstruct a real state — including the
+    'switching' warmup, now that harvest_state implements the mode-cycling
+    policy (the Stage-2 interpretation of the sentinel)."""
+    ds = _descriptors(400, 5)
+    # Cover all four warmup values, switching included.
+    sample = [d for w in WARMUPS for d in ds if d["warmup"] == w][:40]
+    for d in sample:
         kwargs = {k: v for k, v in d.items() if k in HARVEST_KEYS}
         sim = oracle.harvest_state(**kwargs)
         assert sim.building.num_floors == d["floors"]

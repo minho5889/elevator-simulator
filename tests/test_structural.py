@@ -188,6 +188,23 @@ def test_oracle_never_labels_a_zero_delivery_winner():
     assert scored[0]["delivered"] > 0
 
 
+def test_harvest_state_switching_warmup_is_deterministic_and_mixes_modes():
+    """The 'switching' warmup reconstructs deterministically and actually cycles
+    modes (WO-001 sentinel → mode-cycling policy, unblocking WO-002)."""
+    a = oracle.harvest_state("lunch", 7, 300, floors=32, warmup="switching")
+    b = oracle.harvest_state("lunch", 7, 300, floors=32, warmup="switching")
+    # Deterministic given the descriptor (same delivered/spawned/state).
+    assert len(a.metrics.completed_passengers) == len(b.metrics.completed_passengers)
+    assert len(a.metrics.all_passengers) == len(b.metrics.all_passengers)
+    # The dispatcher is a StructuralDispatcher that has cycled at least one mode
+    # boundary over 300 ticks (min_epoch_ticks=150).
+    from elevatorsim.policy.structural import StructuralDispatcher
+    assert isinstance(a.dispatcher, StructuralDispatcher)
+    assert a.dispatcher.current_plan is not None
+    # A switching warmup delivers passengers (it is a working policy, not a stall).
+    assert len(a.metrics.completed_passengers) > 0
+
+
 def test_locked_stage2_calibration_defaults():
     """Pin the Stage-2-calibrated defaults; label_decision() uses them with no args.
 
