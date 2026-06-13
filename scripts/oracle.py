@@ -51,15 +51,29 @@ REGIME_PROFILE = {
 #   + w_energy*energy - w_hc5*hc5 + w_refusals*refusals. Lower is better.
 # mean_effective_wait counts the age of STILL-WAITING passengers as well as the
 # wait of delivered ones, so a do-nothing candidate accrues cost instead of
-# scoring a vacuous 0 — the survivorship guard. REQUIRES calibration in Stage 2;
-# these are documented starting points, not final values.
+# scoring a vacuous 0 — the survivorship guard.
+#
+# LOCKED by the Stage-2 calibration (scripts/calibrate.py, 2026-06-12). With
+# DEFAULT_HORIZON + DEFAULT_SETTLE below, the oracle POLICY (StructuralDispatcher
+# driven by label_decision) beats or matches the best fixed mode on full-episode
+# HC5 in EVERY regime, validated on held-out seeds AND a held-out height (48fl):
+# the lunch myopia that the freeze flagged (oracle ~12% below fixed `zoned`) is
+# closed (ratio 0.88 -> 1.02). See docs/training-plan.md Stage 2.
 DEFAULT_WEIGHTS: Dict[str, float] = {
     "wait": 1.0,
-    "p95": 0.3,
+    "p95": 0.1,
     "energy": 0.005,
-    "hc5": 0.1,
+    "hc5": 0.5,
     "refusals": 2.0,
 }
+
+# Locked labeling horizon and settle period (Stage-2 calibration). settle lets a
+# candidate establish its mode before scoring, crediting the steady-state
+# advantage of slow-starting modes (zoned) that a purely myopic window misses —
+# this is the lever that closed the lunch gap. horizon=settle=300 is robust
+# across heights 32-48 (a fixed pair beats per-cell RTT tuning in validation).
+DEFAULT_HORIZON: int = 300
+DEFAULT_SETTLE: int = 300
 
 # Tie-break ranks (lower wins on an exact cost tie): prefer the operationally
 # simpler mode, then the canonical 'balanced' hold. Makes labels deterministic
@@ -156,16 +170,21 @@ def score_candidate(
 
 def label_decision(
     base_sim: Any,
-    horizon: int,
+    horizon: Optional[int] = None,
     weights: Optional[Dict[str, float]] = None,
-    settle_ticks: int = 0,
+    settle_ticks: Optional[int] = None,
 ) -> Tuple[StructuralPlan, List[Dict[str, Any]]]:
     """Enumerate all 9 plans under Common Random Numbers; return (best_plan, scored).
 
-    ``scored`` is the full candidate list sorted best-first, for inspection and
-    for Tier-B teacher prompting. The global RNG is left exactly as it was found.
+    With no overrides, uses the LOCKED Stage-2 calibration (DEFAULT_WEIGHTS /
+    DEFAULT_HORIZON / DEFAULT_SETTLE) — the config validated to make the oracle
+    policy beat/match every fixed mode per regime. ``scored`` is the full
+    candidate list sorted best-first, for inspection and Tier-B teacher
+    prompting. The global RNG is left exactly as it was found.
     """
     weights = weights or DEFAULT_WEIGHTS
+    horizon = DEFAULT_HORIZON if horizon is None else horizon
+    settle_ticks = DEFAULT_SETTLE if settle_ticks is None else settle_ticks
     rng_state = config.RNG.getstate()
     scored: List[Tuple] = []
     try:
@@ -227,7 +246,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--regime", default="up_peak", choices=list(REGIME_PROFILE))
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--harvest-tick", type=int, default=120)
-    parser.add_argument("--horizon", type=int, default=150)
+    parser.add_argument("--horizon", type=int, default=DEFAULT_HORIZON)
+    parser.add_argument("--settle", type=int, default=DEFAULT_SETTLE)
     parser.add_argument("--floors", type=int, default=32)
     parser.add_argument("--cars", type=int, default=8)
     args = parser.parse_args(argv)
@@ -235,9 +255,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     sim = harvest_state(
         args.regime, args.seed, args.harvest_tick, floors=args.floors, cars=args.cars
     )
-    best, scored = label_decision(sim, args.horizon)
+    best, scored = label_decision(sim, args.horizon, settle_ticks=args.settle)
     print(f"regime={args.regime} seed={args.seed} harvest_tick={args.harvest_tick} "
-          f"horizon={args.horizon} floors={args.floors} cars={args.cars}")
+          f"horizon={args.horizon} settle={args.settle} floors={args.floors} cars={args.cars}")
     print(f"ORACLE LABEL: mode={best.mode} hold={best.hold}\n")
     print(f"{'rank':>4} {'mode':12} {'hold':11} {'cost':>9} {'deliv':>6} {'pend':>5} "
           f"{'mwait':>7} {'p95':>7} {'hc5':>7}")

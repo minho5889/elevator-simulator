@@ -188,6 +188,22 @@ def test_oracle_never_labels_a_zero_delivery_winner():
     assert scored[0]["delivered"] > 0
 
 
+def test_locked_stage2_calibration_defaults():
+    """Pin the Stage-2-calibrated defaults; label_decision() uses them with no args.
+
+    The heavy oracle-policy-vs-baselines validation lives in scripts/calibrate.py
+    (run on demand). This cheap regression catches an accidental revert of the
+    locked config and exercises the default code path.
+    """
+    assert oracle.DEFAULT_HORIZON == 300
+    assert oracle.DEFAULT_SETTLE == 300
+    assert oracle.DEFAULT_WEIGHTS["hc5"] == 0.5 and oracle.DEFAULT_WEIGHTS["p95"] == 0.1
+    plan, scored = oracle.label_decision(oracle.harvest_state("up_peak", 7, 120, floors=20))
+    assert isinstance(plan, StructuralPlan)
+    assert plan.mode in ("conventional", "dd_delayed", "zoned")
+    assert scored[0]["delivered"] > 0
+
+
 def test_settle_ticks_is_accepted_and_reproducible():
     """The Stage-2 settle lever runs and stays CRN-reproducible."""
     p1, s1 = oracle.label_decision(

@@ -1,21 +1,20 @@
 # WO-002: Stage-2 oracle label driver
 Branch: laneb/wo-002
-Status: BLOCKED (on WO-001 output format + Lane-A cost calibration)
+Status: BLOCKED (on WO-001 output format only — calibration is now LOCKED)
 
 ## Goal
 Implement `scripts/label.py`: stream WO-001 descriptors, reconstruct each state
-(`oracle.harvest_state`), label it (`oracle.label_decision` with the LOCKED
-`(weights, horizon, settle_ticks)`), and write training records
+(`oracle.harvest_state`), label it (`oracle.label_decision(sim)` — call it with
+NO weights/horizon/settle overrides; the LOCKED Stage-2 defaults are already the
+oracle's defaults), and write training records
 `{descriptor, input_view, label: {mode, hold}, scored}` as JSONL. `input_view`
 is the serialized `get_all_cars_state` + `get_floor_calls` + `get_traffic_summary`
 of the reconstructed state (the frozen Gemma input).
 
 ## Blocked until
-1. WO-001 lands (descriptor JSONL format final).
-2. **Lane A locks the Stage-2 oracle calibration** — `weights`, `horizon`,
-   `settle_ticks` chosen so the oracle policy ≥ best fixed mode in every regime
-   (the lunch myopia closed). Those constants are passed into this driver; do
-   NOT pick them here. Until then this WO is a spec only.
+WO-001 lands (descriptor JSONL format final). The cost calibration is DONE —
+`oracle.DEFAULT_WEIGHTS/HORIZON/SETTLE` are locked and validated
+(`scripts/calibrate.py`); pass NO overrides, just `label_decision(sim)`.
 
 ## Files you may create/modify (when unblocked)
 - `scripts/label.py` (new)

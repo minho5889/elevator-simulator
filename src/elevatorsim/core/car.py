@@ -38,6 +38,11 @@ class Car:
         # may board (kiosk turnstile — Report §3). Set by DD dispatchers;
         # False preserves conventional walk-in boarding exactly.
         self.assigned_only = False
+        # Sky-lobby service zone: when set to (lo, hi), this car only boards
+        # passengers whose current target is within [lo, hi] — the mechanism
+        # that keeps shuttle cars on the express leg and local cars in their
+        # zone (Report §5.1). None = serves all floors (byte-identical default).
+        self.service_range: tuple[int, int] | None = None
         self.door_state = "CLOSED"  # "CLOSED", "OPEN"
         self.door_timer = 0  # Ticks remaining for door open state
         self.passengers: List[Passenger] = []

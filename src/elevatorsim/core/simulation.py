@@ -21,7 +21,7 @@ from elevatorsim.core.metrics import MetricsCollector
 from elevatorsim.core.events import (
     Event, PassengerSpawned, CallRegistered, CarArrived,
     DoorOpened, PassengerBoarded, PassengerDeboarded, DoorClosed,
-    CarMoved, CarDispatched, BoardingRefused
+    CarMoved, CarDispatched, BoardingRefused, PassengerTransferred
 )
 from elevatorsim.config import RNG
 
@@ -183,10 +183,24 @@ class Simulation:
 
         # 4. Handle boarding and deboarding if doors are open
         if car.door_state == "OPEN":
-            # Deboard arriving passengers
+            # Deboard arriving passengers. A passenger leaves the car at their
+            # current-leg target; if that is also their final_target it is a
+            # true arrival, otherwise they have reached a sky lobby and re-queue
+            # for the next leg on another group (Report §5.1). Single-leg
+            # passengers have final_target == target_floor, so the transfer
+            # branch never fires and behaviour is byte-identical.
             deboarded = car.deboard()
             for p in deboarded:
-                self.emit(PassengerDeboarded(self.current_time, p.passenger_id, car.car_id, car.current_floor))
+                if p.final_target == car.current_floor:
+                    self.emit(PassengerDeboarded(self.current_time, p.passenger_id, car.car_id, car.current_floor))
+                else:
+                    # Transfer: this floor becomes the origin of the next leg.
+                    p.source_floor = car.current_floor
+                    p.target_floor = p.final_target
+                    self.building.add_passenger(p)
+                    self.emit(PassengerTransferred(
+                        self.current_time, p.passenger_id, car.car_id,
+                        car.current_floor, p.final_target))
 
             # Board waiting passengers on current floor (queue order: first
             # person who doesn't fit stops boarding, like a real elevator line)
@@ -202,6 +216,11 @@ class Simulation:
                 if assigned is not None and assigned != car.car_id:
                     continue
                 if assigned is None and getattr(car, "assigned_only", False):
+                    continue
+                # Sky-lobby service zone: a car only boards passengers whose
+                # current-leg target lies in its zone (None = all floors).
+                svc = getattr(car, "service_range", None)
+                if svc is not None and not (svc[0] <= p.target_floor <= svc[1]):
                     continue
                 if car.board(p):
                     boarded.append(p)

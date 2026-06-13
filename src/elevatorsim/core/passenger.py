@@ -24,6 +24,7 @@ class Passenger:
         target_floor: int,
         spawn_time: int,
         weight_kg: int | None = None,
+        final_target: int | None = None,
     ) -> None:
         """
         Initialize passenger.
@@ -31,9 +32,14 @@ class Passenger:
         Args:
             passenger_id: Unique identifier for the passenger
             source_floor: Floor where the passenger requests the elevator
-            target_floor: Destination floor
+            target_floor: Destination floor for the CURRENT leg of the journey
             spawn_time: Simulation tick when passenger request was spawned
             weight_kg: Body weight; defaults deterministically from the id
+            final_target: Ultimate destination across all legs. Defaults to
+                ``target_floor`` (a single-leg journey). When it differs, the
+                passenger transfers at ``target_floor`` (a sky lobby) onto a
+                second elevator group bound for ``final_target`` — see the
+                transfer handling in ``Simulation._step_car`` [Report §5.1].
         """
         self.passenger_id = passenger_id
         self.source_floor = source_floor
@@ -43,6 +49,10 @@ class Passenger:
         # Destination dispatch: when set, this passenger boards only the named
         # car (kiosk assignment — Report §3). None = conventional hall call.
         self.assigned_car_id: str | None = None
+        # Sky-lobby multi-leg journeys: the ultimate destination. Equals
+        # target_floor for the common single-leg case, so single-leg behaviour
+        # is byte-identical (the transfer branch never fires).
+        self.final_target = final_target if final_target is not None else target_floor
 
         # Timing metrics to be filled during simulation
         self.board_time: int | None = None

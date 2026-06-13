@@ -107,6 +107,29 @@ class BoardingRefused(Event):
         )
 
 
+class PassengerTransferred(Event):
+    """Event: a passenger reached a sky lobby and re-queued for their next leg.
+
+    Distinct from PassengerDeboarded (a true arrival at the final destination):
+    a transfer is an intermediate hand-off between elevator groups [Report §5.1],
+    so metrics must NOT count it as a completion.
+    """
+
+    def __init__(self, time: int, passenger_id: str, car_id: str, floor: int,
+                 final_target: int) -> None:
+        super().__init__(time)
+        self.passenger_id = passenger_id
+        self.car_id = car_id
+        self.floor = floor
+        self.final_target = final_target
+
+    def __str__(self) -> str:
+        return (
+            f"[{self.time:03d} T] PASSENGER_TRANSFERRED: {self.passenger_id} left car "
+            f"{self.car_id} at sky lobby {self.floor}, re-queued for floor {self.final_target}"
+        )
+
+
 class DoorClosed(Event):
     """Event indicating the elevator doors closed."""
 
