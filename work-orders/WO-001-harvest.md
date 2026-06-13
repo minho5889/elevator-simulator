@@ -1,6 +1,7 @@
 # WO-001: Stage-1 decision-point descriptor harvester
 Branch: laneb/wo-001
-Status: SPEC
+Status: HANDBACK
+
 
 ## Goal
 Implement the Stage-1 harvester (`scripts/harvest.py`) that emits the stratified
@@ -69,7 +70,15 @@ warmup, harvest_tick}`. Stage 2 reconstructs each state by calling
 - `uv run python scripts/harvest.py --target 2000 --out /tmp/d.jsonl`
 
 ## Writer handback
-<filled by Antigravity>
+- **Implementation**: Created `scripts/harvest.py` implementing `generate_descriptors(target: int, seed_base: int)` and a CLI tool interface.
+- **Stratification**: 
+  - Regimes are round-robined to guarantee exactly 25% distribution each.
+  - Warmups are cycled to ensure every warmup mode is present within every regime.
+  - Heights are systematically distributed across low (20-28), mid (30-40), and high (44-60) floor bands.
+  - Exactly 18% of generated descriptors carry `weight_limit` values in `{120, 150, 200}` for the refusal curriculum.
+- **RNG Safety**: Used a local `random.Random(seed_base)` instance, avoiding any calls to global `random` or `config.RNG` to guarantee zero perturbation.
+- **Verification**: All 5 gate tests in `tests/test_harvest.py` and the full `pytest` suite of 86 tests passed cleanly. Tested CLI with `uv run python scripts/harvest.py --target 2000 --out /tmp/d.jsonl` and verified the stratification report output.
 
 ## Audit findings
 <filled by Claude>
+
