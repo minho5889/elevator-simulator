@@ -2,14 +2,14 @@
 // One contestant lane: identity header (+ live structural mode/hold badge) over
 // its adaptive ElevatorShaft. Greys out gracefully when a model is unavailable.
 import { useArena } from '../state/arenaStore.jsx';
+import { useLang } from '../i18n.jsx';
 import { snapshotAt } from '../hooks/useSnapshots.js';
 import { getTone } from '../config/accents.js';
 import ElevatorShaft from './ElevatorShaft.jsx';
 
-const MODE_LABEL = { conventional: 'Collective', dd_delayed: 'Destination', zoned: 'Zoned' };
-
 export default function ContestantPanel({ contestant }) {
   const { state } = useArena();
+  const { t } = useLang();
   const { config, playback } = state;
   const tone = getTone(contestant.toneSlot);
   const snapshot = snapshotAt(contestant, playback.currentTick);
@@ -22,11 +22,11 @@ export default function ContestantPanel({ contestant }) {
         <span className="text-xl select-none">{contestant.emoji}</span>
         <div className="min-w-0 flex-1">
           <div className="font-display font-extrabold text-[15px] leading-tight truncate" style={{ color: tone.text }}>
-            {contestant.label}
+            {t(`dispatcher.${contestant.dispatcher}.name`)}
           </div>
           {m && (
             <div className="text-[11px] mono text-[var(--ink-3)] truncate">
-              wait {m.awt ?? '—'} · done {Math.round((m.completion || 0) * 100)}%{m.refusals ? ` · ${m.refusals}🚫` : ''}
+              {t('arena.wait')} {m.awt ?? '—'} · {t('arena.done')} {Math.round((m.completion || 0) * 100)}%{m.refusals ? ` · ${m.refusals}🚫` : ''}
             </div>
           )}
         </div>
@@ -34,7 +34,7 @@ export default function ContestantPanel({ contestant }) {
           <div className="flex gap-1 shrink-0">
             <span key={structural.mode} className="tb-mode-flip text-[10px] font-extrabold mono px-1.5 py-0.5 rounded-lg"
               style={{ background: tone.fill, color: tone.text, border: `1.5px solid ${tone.deep}` }}>
-              {MODE_LABEL[structural.mode] || structural.mode || '…'}
+              {structural.mode ? t(`mode.${structural.mode}`) : '…'}
             </span>
             {structural.hold && structural.mode !== 'conventional' && (
               <span className="text-[10px] font-bold mono px-1.5 py-0.5 rounded-lg bg-[var(--well)] text-[var(--ink-2)] border border-[var(--border-ink)]">
@@ -56,8 +56,8 @@ export default function ContestantPanel({ contestant }) {
       ) : (
         <div className="flex-1 min-h-[460px] flex flex-col items-center justify-center text-center p-6 gap-2">
           <span className="text-3xl">😴</span>
-          <div className="font-display font-bold text-[var(--ink-2)]">Sat this one out</div>
-          <div className="text-xs text-[var(--ink-3)] max-w-[260px]">{contestant.reason || 'Unavailable'}</div>
+          <div className="font-display font-bold text-[var(--ink-2)]">{t('arena.satOut.title')}</div>
+          <div className="text-xs text-[var(--ink-3)] max-w-[260px]">{contestant.reason || t('arena.satOut.unavailable')}</div>
         </div>
       )}
       {contestant.error && (

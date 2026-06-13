@@ -3,6 +3,8 @@
 // a tower under a chosen traffic regime, and watch the snapshot stream live.
 import { useArena } from './state/arenaStore.jsx';
 import { useArenaSocket } from './hooks/useArenaSocket.js';
+import { useLang } from './i18n.jsx';
+import { BACKEND_URL } from './config/api.js';
 import ArenaSetup from './components/ArenaSetup.jsx';
 import ArenaGrid from './components/ArenaGrid.jsx';
 import Leaderboard from './components/Leaderboard.jsx';
@@ -11,11 +13,23 @@ import PlaybackBar from './components/PlaybackBar.jsx';
 export default function ArenaApp() {
   const { state, dispatch } = useArena();
   const socket = useArenaSocket();
+  const { t, lang, setLang } = useLang();
 
   const onRace = (specs) => {
     dispatch({ type: 'RESET' });
     socket.connect(specs);
     dispatch({ type: 'PLAY' });
+  };
+
+  const onPreset = async (key) => {
+    socket.disconnect(); // a baked preset replays from cache, no live socket
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/arena/presets/${key}`);
+      if (!r.ok) return;
+      dispatch({ type: 'LOAD_PRESET', preset: await r.json() });
+    } catch {
+      /* network error — leave the current state untouched */
+    }
   };
 
   const hasRace = state.contestants.length > 0;
@@ -26,17 +40,23 @@ export default function ArenaApp() {
         <header className="flex items-end justify-between flex-wrap gap-2">
           <div>
             <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-[var(--ink)] leading-none">
-              🛗 Elevator Arena
+              🛗 {t('arena.title')}
             </h1>
-            <p className="text-sm text-[var(--ink-3)] mt-1">Race elevator brains up a skyscraper.</p>
+            <p className="text-sm text-[var(--ink-3)] mt-1">{t('arena.tagline')}</p>
           </div>
-          <span className="text-xs mono font-bold px-2.5 py-1 rounded-full border-2 border-[var(--border-ink)]"
-            style={{ background: socket.connected ? 'var(--robot-fill)' : 'var(--well)', color: 'var(--ink-2)' }}>
-            {socket.connected ? '● live' : '○ idle'}
-          </span>
+          <div className="flex items-center gap-2">
+            <button className="btn-chunky text-xs font-extrabold px-2.5 py-1.5 rounded-xl"
+              onClick={() => setLang(lang === 'en' ? 'ko' : 'en')} title="Language">
+              {lang === 'en' ? '한국어' : 'EN'}
+            </button>
+            <span className="text-xs mono font-bold px-2.5 py-1 rounded-full border-2 border-[var(--border-ink)]"
+              style={{ background: socket.connected ? 'var(--robot-fill)' : 'var(--well)', color: 'var(--ink-2)' }}>
+              {socket.connected ? `● ${t('arena.live')}` : `○ ${t('arena.idle')}`}
+            </span>
+          </div>
         </header>
 
-        <ArenaSetup onRace={onRace} racing={false} />
+        <ArenaSetup onRace={onRace} onPreset={onPreset} racing={false} />
         {hasRace && <PlaybackBar socket={socket} />}
         {hasRace && <Leaderboard />}
         <ArenaGrid />

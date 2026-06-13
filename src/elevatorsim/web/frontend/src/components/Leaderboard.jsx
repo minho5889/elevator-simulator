@@ -3,6 +3,7 @@
 // cell per row. Generalizes the 2-team Scoreboard to K. Reads live snapshot
 // metrics straight from the store (no client computation).
 import { useArena } from '../state/arenaStore.jsx';
+import { useLang } from '../i18n.jsx';
 import { METRICS } from '../config/dispatchers.js';
 import { getTone } from '../config/accents.js';
 
@@ -14,6 +15,7 @@ function fmt(v, key) {
 
 export default function Leaderboard() {
   const { state } = useArena();
+  const { t } = useLang();
   const rows = state.contestants.filter((c) => c.available && c.metrics);
   if (rows.length < 2) return null;
 
@@ -29,13 +31,13 @@ export default function Leaderboard() {
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
-            <th className="text-left text-[11px] font-extrabold text-[var(--ink-3)] uppercase px-2 py-1">Metric</th>
+            <th className="text-left text-[11px] font-extrabold text-[var(--ink-3)] uppercase px-2 py-1">{t('arena.metricHead')}</th>
             {rows.map((c) => {
               const tone = getTone(c.toneSlot);
               return (
                 <th key={c.id} className="px-2 py-1">
                   <span className="inline-flex items-center gap-1 font-display font-extrabold text-[13px]" style={{ color: tone.text }}>
-                    {c.emoji}<span className="hidden sm:inline">{c.label}</span>
+                    {c.emoji}<span className="hidden sm:inline">{t(`dispatcher.${c.dispatcher}.name`)}</span>
                   </span>
                 </th>
               );
@@ -45,7 +47,7 @@ export default function Leaderboard() {
         <tbody>
           {METRICS.map((m) => (
             <tr key={m.key} className="border-t border-[var(--line-soft)]">
-              <td className="px-2 py-1.5 text-[12px] font-bold text-[var(--ink-2)] whitespace-nowrap">{m.emoji} {m.label}</td>
+              <td className="px-2 py-1.5 text-[12px] font-bold text-[var(--ink-2)] whitespace-nowrap">{m.emoji} {t(`metric.${m.key}`)}</td>
               {rows.map((c) => {
                 const v = c.metrics[m.key];
                 const isBest = v != null && bestByMetric[m.key] != null && v === bestByMetric[m.key];

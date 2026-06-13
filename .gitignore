@@ -40,3 +40,6 @@ data/
 
 # Playwright verification screenshots
 arena-*.png
+
+# Baked arena preset tracks (large, regenerate via scripts/bake_arena_presets.py)
+src/elevatorsim/web/cache/arena_preset_*.json

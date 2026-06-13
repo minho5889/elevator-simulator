@@ -73,6 +73,31 @@ function reducer(state, action) {
       };
     }
 
+    case 'LOAD_PRESET': {
+      const preset = action.preset;
+      const contestants = (preset.contestants || []).map((c) => {
+        const meta = dispatcherMeta(c.dispatcher);
+        const snapshots = {};
+        let latestTick = -1;
+        for (const snap of c.track || []) { snapshots[snap.tick] = snap; latestTick = Math.max(latestTick, snap.tick); }
+        return {
+          id: c.id, dispatcher: c.dispatcher, label: c.label || meta.label,
+          emoji: meta.emoji, toneSlot: meta.toneSlot,
+          available: c.available !== false, reason: c.unavailable_reason || null,
+          snapshots, latestTick, error: null,
+          metrics: c.metrics || (latestTick >= 0 ? snapshots[latestTick].metrics : null),
+        };
+      });
+      const maxTick = contestants.reduce((m, c) => Math.max(m, c.latestTick), 0);
+      return {
+        ...state,
+        config: { ...state.config, ...(preset.config || {}) },
+        contestants,
+        status: { ...state.status, regime: preset.config?.regime ?? state.status.regime, connected: false },
+        playback: { currentTick: 0, maxTick, isPlaying: true, speed: state.playback.speed, mode: 'preset' },
+      };
+    }
+
     case 'INGEST_ARENA_STATE': {
       const { tick, states, events, errors } = action.payload;
       const contestants = state.contestants.map((c) => {

@@ -383,6 +383,33 @@ def run_arena(req: ArenaRequest):
             "contestants": results}
 
 
+@app.get("/api/arena/presets")
+def get_arena_presets():
+    """List baked skyscraper Arena presets (summaries only — tracks omitted)."""
+    index_path = os.path.join(CACHE_DIR, "arena_presets_index.json")
+    if not os.path.exists(index_path):
+        return []
+    try:
+        with open(index_path) as f:
+            return json.load(f)
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Failed to read arena presets index: {e}")
+        return []
+
+
+@app.get("/api/arena/presets/{key}")
+def get_arena_preset(key: str):
+    """Full baked preset (per-tick snapshot tracks) for instant UI replay."""
+    if not key.replace("_", "").isalnum():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid preset key.")
+    path = os.path.join(CACHE_DIR, f"arena_preset_{key}.json")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Preset {key!r} not baked (run scripts/bake_arena_presets.py).")
+    with open(path) as f:
+        return json.load(f)
+
+
 @app.websocket("/api/ws/simulate")
 async def websocket_simulate(websocket: WebSocket):
     await websocket.accept()

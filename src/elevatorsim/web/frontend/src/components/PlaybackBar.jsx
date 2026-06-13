@@ -2,25 +2,27 @@
 // Transport controls for the race: play/pause, scrub the timeline, change speed,
 // or step one tick. Drives the store; the socket hook does the live stepping.
 import { useArena } from '../state/arenaStore.jsx';
+import { useLang } from '../i18n.jsx';
 import { REGIMES_BY_KEY } from '../config/dispatchers.js';
 
 const SPEEDS = [0.5, 1, 2, 4];
 
 export default function PlaybackBar({ socket }) {
   const { state, dispatch } = useArena();
+  const { t } = useLang();
   const { playback, config, status } = state;
   const regime = REGIMES_BY_KEY[status.regime];
   const atEnd = playback.maxTick >= config.max_ticks && playback.currentTick >= playback.maxTick;
 
   return (
     <div className="panel p-2.5 flex items-center gap-3 flex-wrap">
-      <span className="text-[13px] font-extrabold px-2.5 py-1 rounded-full bg-[var(--sun-fill,#FFF1CC)] text-[var(--sun-text)] flex items-center gap-1.5"
+      <span className="text-[13px] font-extrabold px-2.5 py-1 rounded-full text-[var(--sun-text)] flex items-center gap-1.5"
         style={{ background: '#FFF1CC' }}>
-        {regime?.emoji} {regime?.label || status.regime}
+        {regime?.emoji} {t(`regime.${status.regime}.name`)}
       </span>
 
       <button className="btn-chunky w-9 h-9 rounded-xl flex items-center justify-center text-lg"
-        title="Restart" onClick={() => dispatch({ type: 'SET_TICK', tick: 0 })}>⏮</button>
+        title={t('arena.restart')} onClick={() => dispatch({ type: 'SET_TICK', tick: 0 })}>⏮</button>
 
       <button className="btn-sun w-11 h-9 rounded-xl flex items-center justify-center text-lg disabled:opacity-50"
         disabled={!status.connected || atEnd}
@@ -29,7 +31,7 @@ export default function PlaybackBar({ socket }) {
       </button>
 
       <button className="btn-chunky w-9 h-9 rounded-xl flex items-center justify-center text-base disabled:opacity-40"
-        title="Step one tick" disabled={!status.connected || atEnd}
+        title={t('arena.stepOne')} disabled={!status.connected || atEnd}
         onClick={() => {
           if (playback.currentTick < playback.maxTick) dispatch({ type: 'SET_TICK', tick: playback.currentTick + 1 });
           else socket.step();
