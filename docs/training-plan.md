@@ -78,9 +78,10 @@ Sampling grid: regimes × heights (20–60 floors) × cars (4–12) × arrival_r
 
 ### Stage 3 — Dataset assembly
 
-Each training sample = the **exact frozen production I/O contract** (`policy/schemas.py` + the three tools):
-- *Input:* the structural system prompt + the serialized view of `get_all_cars_state` + `get_floor_calls` + `get_traffic_summary` (`json.dumps(sort_keys=True)`).
-- *Output:* a `StructuralPlan` JSON — `{"mode": "...", "hold": "..."}`. **No reasoning field on Gemma's output** (the single biggest G5 latency win); teacher rationales live in a separate, teacher-only field used for the optional reasoning-distillation variant, never decoded at inference.
+Each training sample = the **exact frozen production I/O contract** (`policy/schemas.py`):
+- *Input:* the structural system prompt + the serialized **`get_traffic_summary`** view (`json.dumps(sort_keys=True)`, ~200 chars). **G5-amended (2026-06-13):** do NOT include `get_floor_calls` (its ~17 KB per-passenger dump overflows `gemma4:e4b` context and truncates output) — the traffic summary is the sufficient statistic for the mode decision and is what the latency gate validated at 1.65s.
+- *Output:* a `StructuralPlan` JSON — `{"mode": "...", "hold": "..."}`. **No reasoning field on Gemma's output** (the single biggest G5 latency win; thinking ON measured 12× slower); teacher rationales live in a separate, teacher-only field for the optional reasoning-distillation variant, never decoded at inference.
+- *Inference path:* a single direct `ollama.chat(..., format=StructuralPlan.model_json_schema(), think=False)` call — **not** Strands `agent.structured_output`, which truncated on the real model.
 
 Mix: ~85% plan-only samples, ~15% with teacher rationale (for the reasoning-distillation ablation). Hold out: 2 seeds per regime cell, plus one entire config never seen in training (e.g., 52 floors / 10 cars) for generalization. QC: Gemini-as-judge spot-checks 500 samples for state/label consistency.
 

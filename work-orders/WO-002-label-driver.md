@@ -8,8 +8,11 @@ Implement `scripts/label.py`: stream WO-001 descriptors, reconstruct each state
 NO weights/horizon/settle overrides; the LOCKED Stage-2 defaults are already the
 oracle's defaults), and write training records
 `{descriptor, input_view, label: {mode, hold}, scored}` as JSONL. `input_view`
-is the serialized `get_all_cars_state` + `get_floor_calls` + `get_traffic_summary`
-of the reconstructed state (the frozen Gemma input).
+is the serialized **`get_traffic_summary`** of the reconstructed state ONLY —
+`json.dumps(sort_keys=True)`, ~200 chars. **Do NOT include `get_floor_calls` or
+`get_all_cars_state`** in `input_view`: the G5 latency gate (2026-06-13) proved
+the full call dump (~17 KB) overflows `gemma4:e4b` context and truncates output,
+while the traffic summary alone decides the mode at 1.65s/100%-valid.
 
 ## Blocked until
 WO-001 lands (descriptor JSONL format final). The cost calibration is DONE —
