@@ -24,6 +24,25 @@ from elevatorsim.policy.destination import DestinationGroupDispatcher
 from elevatorsim.policy.schemas import StructuralPlan
 from elevatorsim.policy.zoning import ZonedStaticDispatcher
 
+# FROZEN structural system prompt — part of the I/O contract. The training input
+# (WO-003 assembly) and the inference path (policy/structural_agent.py) must use
+# THIS exact string so train == prod. Concise by design: it rides in every
+# training sample and competes for the G5 latency budget. The mode rules track
+# the measured winner grid (skyscraper-plan §7); the 0-shot base model already
+# follows them in 3 of 4 regimes (G5 gate).
+STRUCTURAL_SYSTEM_PROMPT = (
+    "You are a skyscraper elevator group controller. Each epoch, from the traffic "
+    "summary, choose one structural control plan.\n"
+    "mode:\n"
+    "- dd_delayed: lobby-dominated traffic (high frac_origin_lobby or frac_dest_lobby) "
+    "— destination dispatch.\n"
+    "- zoned: mixed / lunch traffic (lobby plus interfloor) — static sectoring.\n"
+    "- conventional: uniform interfloor traffic — collective control.\n"
+    "hold (departure control): fill_batch when load is light, balanced normally, "
+    "depart_now when saturated.\n"
+    "Respond with the plan only."
+)
+
 # Departure-control presets: hold name -> (batch_threshold, patience_ticks).
 # These are the exact knobs on DestinationGroupDispatcher / ZonedStaticDispatcher;
 # the learned policy chooses among presets rather than emitting raw floats, so the

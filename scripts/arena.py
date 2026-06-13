@@ -99,14 +99,22 @@ def _make_dispatcher(name: str) -> Any:
     arena runs headless without an LLM provider configured."""
     if name in DISPATCHERS:
         return DISPATCHERS[name]()
+    if name.startswith("structural"):
+        # The learned structural policy (P7). `structural` uses the configured
+        # Ollama model (set OLLAMA_MODEL_ID=elevator-gemma for the fine-tuned
+        # model at Stage 5); `structural:<model_id>` overrides it inline. Lazy
+        # import — pulls in the Ollama client the baseline ladder doesn't need.
+        from elevatorsim.policy.structural_agent import make_structural_dispatcher
+
+        model_id = name.split(":", 1)[1] if ":" in name else None
+        return make_structural_dispatcher(model_id=model_id)
     if name in ("agent", "gemma", "elevator-gemma"):
-        # Deferred: the learned policy is wired here once a fine-tuned model
-        # exists (training-plan Stage 5). Import is lazy because it pulls in the
-        # Strands/LLM stack, which the baseline ladder does not need.
+        # Legacy mid-rise agent (GroupDispatchDecision). Superseded by the
+        # `structural` rung for skyscraper scale; kept for Tier-2 comparisons.
         from elevatorsim.policy.agentic import DispatcherAgent
 
         return DispatcherAgent()
-    raise ValueError(f"Unknown dispatcher: {name!r} (known: {', '.join(DISPATCHERS)})")
+    raise ValueError(f"Unknown dispatcher: {name!r} (known: {', '.join(DISPATCHERS)} | structural[:model])")
 
 
 def percentile(data: List[float], q: float) -> float:
