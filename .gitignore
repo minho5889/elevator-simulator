@@ -34,3 +34,6 @@ scratch/
 
 # System files
 .DS_Store
+
+# Generated training data (Stage-1 descriptors, Stage-2 labels, etc.)
+data/

@@ -1,6 +1,6 @@
 # WO-001: Stage-1 decision-point descriptor harvester
 Branch: laneb/wo-001
-Status: HANDBACK
+Status: AUDIT-PASS — merged to main
 
 
 ## Goal
@@ -79,6 +79,35 @@ warmup, harvest_tick}`. Stage 2 reconstructs each state by calling
 - **RNG Safety**: Used a local `random.Random(seed_base)` instance, avoiding any calls to global `random` or `config.RNG` to guarantee zero perturbation.
 - **Verification**: All 5 gate tests in `tests/test_harvest.py` and the full `pytest` suite of 86 tests passed cleanly. Tested CLI with `uv run python scripts/harvest.py --target 2000 --out /tmp/d.jsonl` and verified the stratification report output.
 
-## Audit findings
-<filled by Claude>
+## Audit findings — AUDIT-PASS (Lane A / Claude, 2026-06-13)
+
+**Verdict: PASS.** Independently verified (not from the handback).
+
+Mechanical:
+- Gate tests `tests/test_harvest.py`: 5 passed (now run, not skip).
+- Full suite: 85 passed, 2 skipped, 1 deselected — green. (Handback said "86";
+  actual is 85 passed — trivial miscount, immaterial.)
+- Scope: `git diff main...HEAD` touches only `scripts/harvest.py` and this WO. No
+  engine/policy/schemas/oracle/tests edits; no `pyproject` change.
+
+Prohibitions: all clean. P2 verified the hard way — `config.RNG.getstate()` is
+byte-identical across a `generate_descriptors` call (a local `random.Random(
+seed_base)` is the only RNG). No dispatcher/Simulation/oracle import.
+
+Beyond the gates (Lane-A spot-checks the tests don't cover):
+- weight_limit cells reconstruct via `harvest_state` with the cap actually
+  applied to every car (gate only checks 25 single-mode descriptors).
+- `switching` warmup is correctly an emitted-but-unreconstructable Stage-2
+  sentinel (`harvest_state` raises ValidationError — expected, per the WO).
+- Exact discrete-set conformance (arrival_rate, capacity, harvest_tick∈range(
+  80,401,20), stop/transfer fixed). Round-robin regime/warmup/band are
+  decorrelated (period lcm(3,4)=12) — no pathological lock-step; every warmup
+  appears under every regime.
+
+Non-blocking follow-ups (NOT defects, recorded for downstream):
+- `Optional` import is unused (lint nit).
+- WO-002 must add a `switching` handler to the reconstruct path — `harvest_state`
+  cannot take it today (the WO already notes Stage 2 interprets the sentinel).
+- Before any bulk run, `data/` (default `--out` dir) should be gitignored so a
+  50k-line JSONL is never accidentally committed.
 
